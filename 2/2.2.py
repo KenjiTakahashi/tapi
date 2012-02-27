@@ -31,15 +31,15 @@ x = 0
 y = 0
 points = 0
 
+def random_tree():
+    return (randint(0, 31), (randint(0, 450), randint(0, 400)))
+
 trees_tmp = pygame.image.load("mdb/trees.png").convert_alpha()
 trees = list()
 for i in range(4):
     for j in range(8):
         trees.append(trees_tmp.subsurface((i * 128, j * 128, 128, 128)))
-active_trees = [
-    (randint(0, 31), (randint(0, 450), randint(0, 400)))
-    for i in range(10) if randint(0, 10) <= i
-]
+active_trees = [random_tree() for i in range(10) if randint(0, 10) <= i]
 
 def render_trees(points):
     for (i, pos) in active_trees:
@@ -50,13 +50,14 @@ def move():
     screen.fill((106, 76, 48))
     render_trees(points)
     screen.blit(deaths[direction][which], (x, y))
-    pygame.display.update()
 move()
 
 def attack(points):
     player = pygame.Rect(x + 32, y + 32, 96, 96)
     for i, (_, pos) in enumerate(active_trees):
-        if player.colliderect(pygame.Rect(tuple(a + 32 for a in pos), (96, 96))):
+        if player.colliderect(
+            pygame.Rect(tuple(a + 32 for a in pos), (96, 96))
+        ):
             del active_trees[i]
             points += 1
     for i in range(12):
@@ -75,26 +76,35 @@ while True:
             exit()
     key = pygame.key.get_pressed()
     new_direction = ""
-    if key[K_UP]:
-        new_direction = "n"
-        if y > -32:
-            y -= 2
-    elif key[K_DOWN]:
-        new_direction = "s"
-        if y < 384:
-            y += 2
-    if key[K_RIGHT]:
-        new_direction += "e"
-        if x < 544:
-            x += 2
-    elif key[K_LEFT]:
-        new_direction += "w"
-        if x > -32:
-            x -= 2
-    if new_direction:
-        which += 1
-        which %= 8
-        direction = new_direction
-        move()
-    if key[K_SPACE]:
-        points = attack(points)
+    if len(active_trees) < 30:
+        if key[K_UP]:
+            new_direction = "n"
+            if y > -32:
+                y -= 2
+        elif key[K_DOWN]:
+            new_direction = "s"
+            if y < 384:
+                y += 2
+        if key[K_RIGHT]:
+            new_direction += "e"
+            if x < 544:
+                x += 2
+        elif key[K_LEFT]:
+            new_direction += "w"
+            if x > -32:
+                x -= 2
+        if new_direction:
+            which += 1
+            which %= 8
+            direction = new_direction
+            move()
+        if key[K_SPACE]:
+            points = attack(points)
+        if randint(0, 80) <= 4:
+            active_trees.append(random_tree())
+            render_trees(points)
+    else:
+        screen.fill((0, 0, 0))
+        screen.blit(font.render(str(points), 1, (255, 255, 255)), (10, 460))
+        screen.blit(font.render("GAME OVER", 1, (255, 255, 255)), (200, 200))
+    pygame.display.update()
