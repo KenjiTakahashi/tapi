@@ -36,6 +36,7 @@ while True:
             dragger = not_in(event.pos[0], event.pos[1])
             if not dragger:
                 points.append(event.pos)
+                dragger = event.pos
         if event.type == MOUSEBUTTONUP:
             moving = False
         if event.type == MOUSEMOTION:
