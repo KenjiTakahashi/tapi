@@ -34,7 +34,8 @@ points = 0
 def random_tree():
     return (randint(0, 31), (randint(0, 450), randint(0, 400)))
 
-trees_tmp = pygame.image.load("mdb/trees.png").convert_alpha()
+trees_tmp = pygame.image.load("mdb/trees.png")
+trees_tmp.set_colorkey((115, 109, 181))
 trees = list()
 for i in range(4):
     for j in range(8):
