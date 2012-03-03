@@ -8,19 +8,19 @@ import cPickle
 try:
     image = cPickle.load(open("pickled_image"))
 except IOError:
-    image = [64 * [(0, (0, 0, 0))] for i in range(48)]
+    image = [64 * [None] for i in range(48)]
 
-def update(pos, bit, color, big):
+def update(pos, color, big):
     xm, ym = pos
     x = xm / 10
     y = ym / 10
     if x >= 0 and x < 64 and y >= 0 and y < 48:
-        image[y][x] = (bit, color)
+        image[y][x] = color
         if big:
             try:
                 for i in range(3):
                     for j in range(3):
-                        image[y + i][x + j] = (bit, color)
+                        image[y + i][x + j] = color
             except IndexError:
                 pass
 
@@ -34,7 +34,6 @@ bigger.fill((181, 173, 173))
 points = list()
 
 moving = False
-bit = 1
 big = False
 colors = [
     (0, 0, 0),
@@ -45,6 +44,7 @@ colors = [
     (255, 0, 255),
     (0, 255, 255),
 ]
+old_color = (0, 0, 0)
 color = (0, 0, 0)
 
 while True:
@@ -54,16 +54,17 @@ while True:
             pygame.quit()
             exit()
         if event.type == MOUSEBUTTONDOWN:
-            if event.button == 1:
-                bit = 1
-            elif event.button == 3:
-                bit = 0
-            update(event.pos, bit, color, big)
+            if event.button == 3:
+                old_color = color
+                color = None
+            update(event.pos, color, big)
             moving = True
         if event.type == MOUSEMOTION:
             if moving:
-                update(event.pos, bit, color, big)
+                update(event.pos, color, big)
         if event.type == MOUSEBUTTONUP:
+            if event.button == 3:
+                color = old_color
             moving = False
         if event.type == KEYDOWN:
             if event.key == K_LSHIFT:
@@ -87,10 +88,10 @@ while True:
     for i in range(48):
         for j in range(64):
             img_ = image[i][j]
-            if img_[0]:
-                pygame.draw.rect(screen, img_[1], (10 * j, 10 * i, 10, 10))
+            if img_:
+                pygame.draw.rect(screen, img_, (10 * j, 10 * i, 10, 10))
                 if preview_enabled:
-                    pygame.draw.line(preview, img_[1], (j, i), (j, i))
+                    pygame.draw.line(preview, img_, (j, i), (j, i))
                     #pygame.draw.rect(preview, (0, 0, 0), (j, i, 1, 1)) # WTF?!
     if preview_enabled:
         screen.blit(preview, (0, 432))
