@@ -34,7 +34,7 @@ block_pos = (0, 0)
 moving = False
 rect_x, rect_y = None, None
 
-def get_block(dy, point):
+def get_block(blocks, dy, point):
     point = (point[0], point[1] + dy)
     for coord, block in blocks.iteritems():
         if pygame.Rect(coord, (40, 40)).collidepoint(point):
