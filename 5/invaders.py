@@ -50,21 +50,27 @@ class Alien(pygame.sprite.Sprite):
         self.rect.centery = self.y
         self.bullets = bullets
         self.worth = self.type + 1
+        self.loading = 50
 
     def update(self):
-        self.x += self.state
         self.tmpAni += 1
         if self.tmpAni > 7:
             self.ani = (self.ani + 1) % 2
             self.tmpAni = 0
         self.image = Alien._invaders[self.type][self.ani]
-        if self.x % 640 == 0:
-            self.state = -self.state
+        if self.loading:
+            self.loading -= 1
+            self.x += 4
             self.y += 4
+        else:
+            self.x += self.state
+            if self.x % 640 == 0:
+                self.state = -self.state
+                self.y += 4
+            if randint(0, 900) == 0:
+                self.fire()
         self.rect.centerx = self.x
         self.rect.centery = self.y
-        if randint(0, 900) == 0:
-            self.fire()
 
     def fire(self):
         vx, vy = 0, 4
@@ -72,9 +78,6 @@ class Alien(pygame.sprite.Sprite):
             (self.rect.centerx + 3 * vx, self.rect.centery + 3 * vy),
             vx, vy
         ))
-
-    def draw(self, screen):
-        screen.blit(self.image, (self.rect.left, self.rect.top))
 
 
 class Ship(pygame.sprite.Sprite):
@@ -93,7 +96,7 @@ class Ship(pygame.sprite.Sprite):
 
     def setType(self, type):
         self.type = type
-        self.dy = self.type * 10
+        self.dy = self.type * 20
         self.image = Ship._ships[self.type - 1][0]
         self.rect = self.image.get_rect()
         self.rect.centerx = self.x
@@ -127,8 +130,6 @@ class Ship(pygame.sprite.Sprite):
     def hit(self):
         self.destroyed = 1
         self.lifes -= 1
-        if self.lifes == 0:
-            pass # game over
 
     def drive(self, key):
         self.dx = 0
@@ -172,9 +173,6 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.centerx = self.x
         self.rect.centery = self.y
 
-    def draw(self, screen):
-        screen.blit(self.image, (self.rect.left, self.rect.top))
-
 
 class Scoreboard(pygame.sprite.Sprite):
     def __init__(self):
@@ -194,15 +192,14 @@ class Scoreboard(pygame.sprite.Sprite):
         self.rockets = pygame.sprite.Group()
         self.bullets = pygame.sprite.Group()
         self.ship = Ship((280, 440), self.rockets)
-        self.aliens = self.doAliens()
-        self.invaders = pygame.sprite.Group(self.aliens)
+        self.doAliens()
         self.update()
 
     def doAliens(self):
-        return [
-            Alien((50 * i, 60 + 30 * j), self.bullets)
-            for i in range(15) for j in range(4)
-        ]
+        self.invaders = pygame.sprite.Group([
+            Alien((50 * i - 200, 30 * j - 140), self.bullets)
+            for i in range(13) for j in range(self.level + 3)
+        ])
 
     def update(self, points=0, lifes=0):
         self.points += points
@@ -218,6 +215,10 @@ class Scoreboard(pygame.sprite.Sprite):
         thumb = self.ship.getThumb()
         for i in range(self.lifes):
             self.image.blit(thumb, (576 + i * 14, 3))
+        if not self.lifes:
+            self.image.blit(
+                self.font.render("GAME OVER", 1, (0, 0, 0)), (260, 5)
+            )
 
     def draw(self):
         self.screen.blit(self.image, (self.rect.left, self.rect.top))
@@ -245,18 +246,22 @@ class Scoreboard(pygame.sprite.Sprite):
             colls = pygame.sprite.groupcollide(
                 self.invaders, self.rockets, True, True
             )
-            if colls:
-                self.update(points=sum([a.worth for a in colls]))
-                # play a sound
             self.draw()
-            self.invaders.update()
-            self.ship.update()
-            self.invaders.draw(self.screen)
-            self.ship.draw(self.screen)
-            self.bullets.update()
-            self.rockets.update()
-            self.bullets.draw(self.screen)
-            self.rockets.draw(self.screen)
+            if self.lifes:
+                if colls:
+                    self.update(points=sum([a.worth for a in colls]))
+                    # play a sound
+                if not self.invaders:
+                    self.level += 1
+                    self.doAliens()
+                self.invaders.update()
+                self.ship.update()
+                self.invaders.draw(self.screen)
+                self.ship.draw(self.screen)
+                self.bullets.update()
+                self.rockets.update()
+                self.bullets.draw(self.screen)
+                self.rockets.draw(self.screen)
             pygame.display.update()
 
 
