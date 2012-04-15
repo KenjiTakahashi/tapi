@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Karol "Kenji Takahashi" Wozniak (C) 2012
-# GFX by David Gervais (http://forum.thegamecreators.com/?m=forum_view&t=67876&b=1)
+# GFX by David Gervais (http://forum.thegamecreators.com/?m=forum_view&t=67876)
 
 import pygame
 from pygame.locals import *
@@ -34,10 +34,24 @@ def _makeShips():
     return ships
 
 
+def _makeDrops():
+    drops = list()
+    image = pygame.image.load('gfx/fighter.png')
+    for i in range(3):
+        img = pygame.Surface((32, 32))
+        img.blit(image, (0, 0), (i * 32, 0, 32, 32))
+        img.set_colorkey((255, 0, 255))
+        drops.append(pygame.transform.scale(img, (14, 14)))
+    img = pygame.Surface((20, 20))
+    img.fill((90, 90, 90))
+    drops.append(img)
+    return drops
+
+
 class Alien(pygame.sprite.Sprite):
     _invaders = _makeInvaders()
 
-    def __init__(self, position, bullets, special=False):
+    def __init__(self, position, bullets, drops):
         super(Alien, self).__init__()
         self.x, self.y = position
         self.state = 1
@@ -49,8 +63,10 @@ class Alien(pygame.sprite.Sprite):
         self.rect.centerx = self.x
         self.rect.centery = self.y
         self.bullets = bullets
+        self.drops = drops
         self.worth = self.type + 1
         self.loading = 50
+        self.vy = 4
 
     def update(self):
         self.tmpAni += 1
@@ -73,10 +89,13 @@ class Alien(pygame.sprite.Sprite):
         self.rect.centery = self.y
 
     def fire(self):
-        vx, vy = 0, 4
         self.bullets.add(Bullet(
-            (self.rect.centerx + 3 * vx, self.rect.centery + 3 * vy),
-            vx, vy
+            (self.rect.centerx, self.rect.centery + 3 * self.vy), self.vy
+        ))
+
+    def drop(self):
+        self.drops.add(Drop(
+            (self.rect.centerx, self.rect.centery + 3 * self.vy), self.vy
         ))
 
 
@@ -91,7 +110,6 @@ class Ship(pygame.sprite.Sprite):
         self.destroyed = 0
         self.bullets = bullets
         self.wait = 0
-        self.lifes = 3
         self.setType(1)
 
     def setType(self, type):
@@ -113,23 +131,28 @@ class Ship(pygame.sprite.Sprite):
 
     def fire(self):
         if self.wait == 0:
-            vx = 0
             vy = -4
             if self.type == 1:
                 self.bullets.add(Bullet(
-                    (self.rect.centerx + 3 * vx,
-                    self.rect.centery + 3 * vy),
-                    vx, vy
+                    (self.rect.centerx, self.rect.centery + 3 * vy), vy
                 ))
             elif self.type == 2:
-                pass
+                self.bullets.add(Bullet(
+                    (self.rect.centerx, self.rect.centery + 3 * vy), vy
+                ))
             elif self.type == 3:
-                pass
+                self.bullets.add(Bullet(
+                    (self.rect.centerx, self.rect.centery + 3 * vy), vy
+                ))
             self.wait = 10
 
     def hit(self):
         self.destroyed = 1
-        self.lifes -= 1
+
+    def reward(self, type):
+        if type == 4:
+            return True
+        self.setType(type)
 
     def drive(self, key):
         self.dx = 0
@@ -153,10 +176,10 @@ class Ship(pygame.sprite.Sprite):
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, position, vx, vy):
+    def __init__(self, position, vy):
         super(Bullet, self).__init__()
         self.x, self.y = position
-        self.vx, self.vy = vx, vy
+        self.vy = vy
         self.image = pygame.Surface((5, 5))
         self.image.fill((255, 255, 255))
         self.image.set_colorkey((255, 255, 255))
@@ -168,15 +191,85 @@ class Bullet(pygame.sprite.Sprite):
     def update(self):
         if self.y < 0 or self.y > 454:
             self.kill()
-        self.x += self.vx
         self.y += self.vy
+        self.rect.centery = self.y
+
+
+class Concrete(pygame.sprite.Sprite):
+    def __init__(self, position):
+        super(Concrete, self).__init__()
+        self.x, self.y = position
+        self.image = pygame.Surface((5, 5))
+        self.image.fill((90, 90, 90))
+        self.rect = self.image.get_rect()
         self.rect.centerx = self.x
         self.rect.centery = self.y
 
 
-class Scoreboard(pygame.sprite.Sprite):
+class Wall(list):
     def __init__(self):
-        super(Scoreboard, self).__init__()
+        super(Wall, self).__init__()
+        self.x = 0
+        self.ex = set()
+
+    def create(self):
+        brick = pygame.sprite.Group()
+        if self.ex:
+            self.x = self.ex.pop()
+        else:
+            self.x += 20
+        for i in range(4):
+            for j in range(self.x - 20, self.x, 5):
+                brick.add(Concrete((j, 380 + i * 5)))
+        self.append(brick)
+
+    def update(self):
+        for brick in self:
+            brick.update()
+
+    def draw(self, screen):
+        for brick in self:
+            brick.draw(screen)
+
+    def groupcollide(self, one):
+        for brick in self:
+            res = pygame.sprite.groupcollide(brick, one, True, True)
+            if not len(brick):
+                x = res.keys()[0].x
+                x -= (x % 20)
+                self.ex.add(x)
+                self.remove(brick)
+
+
+class Drop(pygame.sprite.Sprite):
+    _drops = _makeDrops()
+
+    def __init__(self, position, vy):
+        super(Drop, self).__init__()
+        self.x, self.y = position
+        if randint(0, 3) == 0:
+            self.type = randint(0, 2)
+        else:
+            self.type = 3
+        self.image = Drop._drops[self.type]
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.x
+        self.rect.centery = self.y
+        self.vy = vy
+
+    def update(self):
+        if self.y > 454:
+            self.kill()
+        self.y += self.vy
+        self.rect.centery = self.y
+
+    def reward(self):
+        return self.type + 1
+
+
+class Board(pygame.sprite.Sprite):
+    def __init__(self):
+        super(Board, self).__init__()
         pygame.init()
         pygame.font.init()
         self.screen = pygame.display.set_mode((640, 480))
@@ -191,13 +284,15 @@ class Scoreboard(pygame.sprite.Sprite):
         self.font = pygame.font.Font(None, 18)
         self.rockets = pygame.sprite.Group()
         self.bullets = pygame.sprite.Group()
+        self.drops = pygame.sprite.Group()
+        self.wall = Wall()
         self.ship = Ship((280, 440), self.rockets)
         self.doAliens()
         self.update()
 
     def doAliens(self):
         self.invaders = pygame.sprite.Group([
-            Alien((50 * i - 200, 30 * j - 140), self.bullets)
+            Alien((50 * i - 200, 30 * j - 140), self.bullets, self.drops)
             for i in range(13) for j in range(self.level + 3)
         ])
 
@@ -243,13 +338,23 @@ class Scoreboard(pygame.sprite.Sprite):
                     self.ship.hit()
                     self.update(lifes=1)
                     # play a sound
-            colls = pygame.sprite.groupcollide(
-                self.invaders, self.rockets, True, True
-            )
-            self.draw()
             if self.lifes:
+                colls = pygame.sprite.groupcollide(
+                    self.invaders, self.rockets, True, True
+                )
+                self.wall.groupcollide(self.rockets)
+                self.wall.groupcollide(self.bullets)
+                for d in self.drops:
+                    if pygame.sprite.collide_rect(d, self.ship):
+                        d.kill()
+                        if self.ship.reward(d.reward()):
+                            self.wall.create()
+                        else:
+                            self.update()
                 if colls:
                     self.update(points=sum([a.worth for a in colls]))
+                    if randint(0, 0) == 0:
+                        colls.keys()[randint(0, len(colls) - 1)].drop()
                     # play a sound
                 if not self.invaders:
                     self.level += 1
@@ -258,13 +363,18 @@ class Scoreboard(pygame.sprite.Sprite):
                 self.ship.update()
                 self.invaders.draw(self.screen)
                 self.ship.draw(self.screen)
+                self.drops.update()
                 self.bullets.update()
                 self.rockets.update()
+                self.wall.update()
+                self.drops.draw(self.screen)
                 self.bullets.draw(self.screen)
                 self.rockets.draw(self.screen)
+                self.wall.draw(self.screen)
+            self.draw()
             pygame.display.update()
 
 
 if __name__ == '__main__':
-    scoreboard = Scoreboard()
+    scoreboard = Board()
     scoreboard.run()
