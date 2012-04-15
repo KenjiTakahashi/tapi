@@ -113,27 +113,50 @@ class Ship(pygame.sprite.Sprite):
         self.destroyed = 0
         self.bullets = bullets
         self.wait = 0
+        self.loading = 60
         self.setType(1)
 
     def setType(self, type):
         self.type = type
         self.dy = self.type * 20
-        self.image = Ship._ships[self.type - 1][0]
+        self.orig = Ship._ships[self.type - 1][0]
+        if self.loading:
+            self.image = pygame.transform.rotate(self.orig, 180)
+        else:
+            self.image = self.orig
         self.rect = self.image.get_rect()
         self.rect.centerx = self.x
         self.rect.centery = self.y
 
     def getThumb(self):
+        if self.destroyed:
+            return Ship._ships[0][1]
         return Ship._ships[self.type - 1][1]
 
+    def _rotate(self, angle):
+        oldc = self.rect.center
+        self.image = pygame.transform.rotate(self.orig, angle)
+        self.rect = self.image.get_rect()
+        self.rect.center = oldc
+
     def update(self):
+        if self.destroyed:
+            self.destroyed -= 1
+            self._rotate((self.destroyed - 60) * 3)
+            if not self.destroyed:
+                self.setType(1)
+                self.loading = 60
+        if self.loading:
+            self.loading -= 1
+            self._rotate(180 + (self.loading - 60) * 3)
         self.x += self.dx
         self.rect.centerx = self.x
+        self.rect.centery = self.y
         if self.wait > 0:
             self.wait -= 1
 
     def fire(self):
-        if self.wait == 0:
+        if not self.destroyed and not self.loading and self.wait == 0:
             self._shot.play()
             vy = -4
             if self.type in [1, 3]:
@@ -150,8 +173,10 @@ class Ship(pygame.sprite.Sprite):
             self.wait = 10
 
     def hit(self):
-        self._hit.play()
-        self.destroyed = 1
+        if not self.destroyed and not self.loading:
+            self._hit.play()
+            self.destroyed = 60
+            return True
 
     def reward(self, type):
         if type == 4:
@@ -339,10 +364,11 @@ class Board(pygame.sprite.Sprite):
             self.screen.fill((60, 90, 250))
             self.ship.drive(keys)
             for b in self.bullets:
-                if pygame.sprite.collide_rect(b, self.ship):
+                if(pygame.sprite.collide_rect(b, self.ship)
+                and self.ship.hit()):
                     b.kill()
-                    self.ship.hit()
                     self.update(lifes=1)
+                    break
             if self.lifes:
                 colls = pygame.sprite.groupcollide(
                     self.invaders, self.rockets, True, True
