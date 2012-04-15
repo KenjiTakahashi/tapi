@@ -132,17 +132,16 @@ class Ship(pygame.sprite.Sprite):
     def fire(self):
         if self.wait == 0:
             vy = -4
-            if self.type == 1:
+            if self.type in [1, 3]:
                 self.bullets.add(Bullet(
                     (self.rect.centerx, self.rect.centery + 3 * vy), vy
                 ))
-            elif self.type == 2:
+            if self.type in [2, 3]:
                 self.bullets.add(Bullet(
-                    (self.rect.centerx, self.rect.centery + 3 * vy), vy
+                    (self.rect.centerx - 8, self.rect.centery + 5 * vy), vy
                 ))
-            elif self.type == 3:
                 self.bullets.add(Bullet(
-                    (self.rect.centerx, self.rect.centery + 3 * vy), vy
+                    (self.rect.centerx + 8, self.rect.centery + 5 * vy), vy
                 ))
             self.wait = 10
 
