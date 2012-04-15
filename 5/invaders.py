@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # Karol "Kenji Takahashi" Wozniak (C) 2012
 # GFX by David Gervais (http://forum.thegamecreators.com/?m=forum_view&t=67876)
+# SFX by GRSites (http://www.grsites.com/archive/sounds)
 
 import pygame
 from pygame.locals import *
@@ -104,6 +105,8 @@ class Ship(pygame.sprite.Sprite):
 
     def __init__(self, position, bullets):
         super(Ship, self).__init__()
+        self._shot = pygame.mixer.Sound('sfx/scifi003.wav')
+        self._hit = pygame.mixer.Sound('sfx/aircraft065.wav')
         self.x, self.y = position
         self.dx, self.dy = 0, 0
         self.rect = None
@@ -131,6 +134,7 @@ class Ship(pygame.sprite.Sprite):
 
     def fire(self):
         if self.wait == 0:
+            self._shot.play()
             vy = -4
             if self.type in [1, 3]:
                 self.bullets.add(Bullet(
@@ -146,6 +150,7 @@ class Ship(pygame.sprite.Sprite):
             self.wait = 10
 
     def hit(self):
+        self._hit.play()
         self.destroyed = 1
 
     def reward(self, type):
@@ -271,8 +276,10 @@ class Board(pygame.sprite.Sprite):
         super(Board, self).__init__()
         pygame.init()
         pygame.font.init()
+        pygame.mixer.init()
         self.screen = pygame.display.set_mode((640, 480))
         self.clock = pygame.time.Clock()
+        self.destroy = pygame.mixer.Sound('sfx/battle003.wav')
         self.level = 1
         self.points = 0
         self.lifes = 3
@@ -336,7 +343,6 @@ class Board(pygame.sprite.Sprite):
                     b.kill()
                     self.ship.hit()
                     self.update(lifes=1)
-                    # play a sound
             if self.lifes:
                 colls = pygame.sprite.groupcollide(
                     self.invaders, self.rockets, True, True
@@ -352,9 +358,9 @@ class Board(pygame.sprite.Sprite):
                             self.update()
                 if colls:
                     self.update(points=sum([a.worth for a in colls]))
-                    if randint(0, 0) == 0:
+                    if randint(0, 20) == 0:
                         colls.keys()[randint(0, len(colls) - 1)].drop()
-                    # play a sound
+                    self.destroy.play()
                 if not self.invaders:
                     self.level += 1
                     self.doAliens()
