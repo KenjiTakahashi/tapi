@@ -7,10 +7,10 @@ from pygame.locals import *
 from sys import exit
 
 
-def _makeani(path):
+def _makeani(path, n):
     image = pygame.image.load(path)
     l = list()
-    for  i in range(8):
+    for  i in range(n):
         img = pygame.Surface((32, 32))
         img.blit(image, (0, 0), (i * 32, 0, 32, 32))
         img.set_colorkey((255, 0, 255))
@@ -41,8 +41,8 @@ def _makecoin():
 
 
 class Hero(pygame.sprite.Sprite):
-    _anileft = _makeani('gfx/gripe.run_left.png')
-    _aniright = _makeani('gfx/gripe.run_right.png')
+    _anileft = _makeani('gfx/gripe.run_left.png', 8)
+    _aniright = _makeani('gfx/gripe.run_right.png', 8)
 
     def __init__(self, position):
         super(Hero, self).__init__()
@@ -117,6 +117,43 @@ class Hero(pygame.sprite.Sprite):
 
     def draw(self, screen):
         screen.blit(self.image, (self.rect.left, self.rect.top))
+
+
+class NormalFoe(pygame.sprite.Sprite):
+    _left = _makeani('gfx/wheelie_left.png', 4)
+    _right = _makeani('gfx/wheelie_right.png', 4)
+
+    def __init__(self, position, offset):
+        super(NormalFoe, self).__init__()
+        self.x, self.y = position
+        self.ground = self.x
+        self.ani = 0
+        self.image = NormalFoe._left[self.ani]
+        self.rect = self.image.get_rect()
+        self.rect.left = self.x
+        self.rect.top = self.y
+        self.offset = offset
+        self.ooffset = offset
+
+    def update(self, yes):
+        if self.x + self.rect.width < 0:
+            self.kill()
+        else:
+            self.ani += 1
+            self.ani %= 4
+            if not yes:
+                self.x -= 3
+                self.ground -= 3
+            if self.offset:
+                self.x += 3
+                self.offset -= 3
+                self.image = NormalFoe._right[self.ani]
+            else:
+                self.x -= 3
+                self.image = NormalFoe._left[self.ani]
+            if self.x == self.ground:
+                self.offset = self.ooffset
+            self.rect.left = self.x
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -241,7 +278,8 @@ class Game(pygame.sprite.Sprite):
                 [(440, 320), (460, 320), (480, 320), (500, 320)]
             ],  # coins spec
             [
-            ]  # enemies spec
+                [(0, 450, 370, 72)]
+            ]  # foes spec
         ),
         (  # 2nd level
         )
@@ -259,8 +297,9 @@ class Game(pygame.sprite.Sprite):
         self.bullets = pygame.sprite.Group()
         self.platforms = pygame.sprite.Group()
         self.coins = pygame.sprite.Group()
+        self.foes = pygame.sprite.Group()
         self.level = 1
-        self.ppos, self.width, ground, platforms, coins, enemies\
+        self.ppos, self.width, ground, platforms, coins, foes\
         = Game._levels[self.level]
         for i in range(len(ground)):
             piece = pygame.image.load('gfx/01/p{0}.png'.format(i)).convert()
@@ -275,6 +314,9 @@ class Game(pygame.sprite.Sprite):
             self.platforms.add(Platform((x, y), o))
         for x, y in coins[self.level - 1]:
             self.coins.add(Coin((x, y)))
+        for t, x, y, o in foes[self.level - 1]:
+            if not t:
+                self.foes.add(NormalFoe((x, y), o))
         self.hero = Hero((15, self.ppos))
 
     def update(self, moving):
@@ -283,9 +325,11 @@ class Game(pygame.sprite.Sprite):
             self.pieces.update()
             self.platforms.update(False)
             self.coins.update(False)
+            self.foes.update(False)
         else:
             self.platforms.update(True)
             self.coins.update(True)
+            self.foes.update(True)
 
     def draw(self):
         x = self.x % 640
@@ -323,6 +367,7 @@ class Game(pygame.sprite.Sprite):
             self.platforms.draw(self.screen)
             self.coins.draw(self.screen)
             self.hero.draw(self.screen)
+            self.foes.draw(self.screen)
             self.bullets.draw(self.screen)
             pygame.display.update()
 
