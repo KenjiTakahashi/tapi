@@ -5,6 +5,7 @@
 import pygame
 from pygame.locals import *
 from sys import exit
+from random import randint
 
 
 def _makeani(path, n):
@@ -57,6 +58,7 @@ class Hero(pygame.sprite.Sprite):
         self.rect.top = self.y
         self.collided = False
         self.wait = 0
+        self.direction = 0
 
     def update(self, end):
         self.prev = self.x, self.y
@@ -88,8 +90,10 @@ class Hero(pygame.sprite.Sprite):
         if key[K_LEFT]:
             self.vx = -3
             self.image = Hero._anileft[self.ani]
+            self.direction = 1
         elif key[K_RIGHT]:
             self.vx = 3
+            self.direction = 0
             self.image = Hero._aniright[self.ani]
             return self.x == 340
 
@@ -109,8 +113,14 @@ class Hero(pygame.sprite.Sprite):
 
     def shot(self, bullets):
         if not self.wait:
-            bullets.add(Bullet(3, (self.rect.right, self.rect.centery - 5)))
-            self.wait = 45
+            if self.direction:
+                vx = -5
+                x = self.rect.left
+            else:
+                vx = 5
+                x = self.rect.right
+            bullets.add(Bullet(1, vx, (x, self.rect.centery - 5)))
+            self.wait = 35
 
     def die(self):
         pass
@@ -156,28 +166,78 @@ class NormalFoe(pygame.sprite.Sprite):
             self.rect.left = self.x
 
 
+class ShootingFoe(pygame.sprite.Sprite):
+    _left = _makeani('gfx/grog.left.png', 8)
+    _right = _makeani('gfx/grog.right.png', 8)
+
+    def __init__(self, position, offset, bullets):
+        super(ShootingFoe, self).__init__()
+        self.x, self.y = position
+        self.ground = self.x
+        self.ani = 0
+        self.image = ShootingFoe._right[self.ani]
+        self.rect = self.image.get_rect()
+        self.rect.left = self.x
+        self.rect.top = self.y
+        self.offset = offset
+        self.ooffset = offset
+        self.bullets = bullets
+
+    def update(self, yes):
+        if self.x + self.rect.width < 0:
+            self.kill()
+        else:
+            self.ani += 1
+            self.ani %= 8
+            if not yes:
+                self.x -= 3
+                self.ground -= 3
+            if self.offset:
+                self.x += 3
+                self.offset -= 3
+                self.image = ShootingFoe._right[self.ani]
+            else:
+                self.x -= 3
+                self.image = ShootingFoe._left[self.ani]
+            if self.x == self.ground:
+                self.offset = self.ooffset
+            self.rect.left = self.x
+            if randint(0, 80) == 0:
+                self.fire()
+
+    def fire(self):
+        if self.offset:
+            vx = 5
+            x = self.rect.right
+        else:
+            vx = -5
+            x = self.rect.left
+        self.bullets.add((Bullet(0, vx, (x, self.rect.centery - 5))))
+
+
 class Bullet(pygame.sprite.Sprite):
     _ally = _makebullet()
     _foe = _makebullet("green")
 
-    def __init__(self, type, position):
+    def __init__(self, type, vx, position):
         super(Bullet, self).__init__()
         self.x, self.y = position
         self.ground = self.x
         self.ani = 0
-        self.image = type == 3 and Bullet._ally[0] or Bullet._foe[0]
+        self.type = type
+        self.image = type == 1 and Bullet._ally[0] or Bullet._foe[0]
         self.rect = self.image.get_rect()
         self.rect.left = self.x
         self.rect.top = self.y
-        self.vx = type
+        self.vx = vx
 
     def update(self):
-        if self.x > self.ground + 120:
+        if self.x > self.ground + 120 or self.x < self.ground - 120:
             self.kill()
         else:
             self.ani += 1
             self.ani %= 4
-            self.image = self.vx == 3\
+            self.image = self.type == 1\
             and Bullet._ally[self.ani] or Bullet._foe[self.ani]
             self.x += self.vx
             self.rect.left = self.x
@@ -262,13 +322,16 @@ class Game(pygame.sprite.Sprite):
             417,  # player starting position
             448,  # level length
             [
-                [(14, 448, False), (8, 400, False)],
+                [(14, 448, 0), (8, 400, 448), (6, 416, 904)],
                 [
-                    (14, 464, False),
-                    (8, 416, True),
-                    (8, 432, True),
-                    (8, 448, True),
-                    (8, 464, True)
+                    (14, 464, 0),
+                    (8, 416, 448),
+                    (8, 432, 448),
+                    (8, 448, 448),
+                    (8, 464, 448),
+                    (6, 432, 904),
+                    (6, 448, 904),
+                    (6, 464, 904)
                 ]
             ],  # ground spec
             [
@@ -278,7 +341,7 @@ class Game(pygame.sprite.Sprite):
                 [(440, 320), (460, 320), (480, 320), (500, 320)]
             ],  # coins spec
             [
-                [(0, 450, 370, 72)]
+                [(0, 450, 369, 72), (1, 910, 385, 84)]
             ]  # foes spec
         ),
         (  # 2nd level
@@ -304,12 +367,9 @@ class Game(pygame.sprite.Sprite):
         for i in range(len(ground)):
             piece = pygame.image.load('gfx/01/p{0}.png'.format(i)).convert()
             piece.set_colorkey((255, 0, 255))
-            curpos = 0
-            for num, height, boo in ground[i]:
+            for num, height, start in ground[i]:
                 for j in range(num):
-                    self.pieces.add(Piece(piece, (32 * j + curpos, height)))
-                if not boo:
-                    curpos += num * 32
+                    self.pieces.add(Piece(piece, (32 * j + start, height)))
         for x, y, o in platforms[self.level - 1]:
             self.platforms.add(Platform((x, y), o))
         for x, y in coins[self.level - 1]:
@@ -317,6 +377,8 @@ class Game(pygame.sprite.Sprite):
         for t, x, y, o in foes[self.level - 1]:
             if not t:
                 self.foes.add(NormalFoe((x, y), o))
+            else:
+                self.foes.add(ShootingFoe((x, y), o, self.bullets))
         self.hero = Hero((15, self.ppos))
 
     def update(self, moving):
