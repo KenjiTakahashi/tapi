@@ -29,6 +29,17 @@ def _makebullet(path=""):
     return l
 
 
+def _makecoin():
+    image = pygame.image.load('gfx/coin.png')
+    l = list()
+    for i in range(8):
+        img = pygame.Surface((16, 16))
+        img.blit(image, (0, 0), (i * 16, 0, 16, 16))
+        img.set_colorkey((255, 0, 255))
+        l.append(img)
+    return l
+
+
 class Hero(pygame.sprite.Sprite):
     _anileft = _makeani('gfx/gripe.run_left.png')
     _aniright = _makeani('gfx/gripe.run_right.png')
@@ -136,8 +147,27 @@ class Bullet(pygame.sprite.Sprite):
 
 
 class Coin(pygame.sprite.Sprite):
+    _images = _makecoin()
+
     def __init__(self, position):
         super(Coin, self).__init__()
+        self.x, self.y = position
+        self.ani = 0
+        self.image = Coin._images[self.ani]
+        self.rect = self.image.get_rect()
+        self.rect.left = self.x
+        self.rect.top = self.y
+
+    def update(self, yes):
+        if self.x + self.rect.width < 0:
+            self.kill()
+        else:
+            if not yes:
+                self.x -= 3
+                self.rect.left = self.x
+            self.ani += 1
+            self.ani %= 8
+            self.image = Coin._images[self.ani]
 
 
 class Platform(pygame.sprite.Sprite):
@@ -208,6 +238,9 @@ class Game(pygame.sprite.Sprite):
                 [(720, 400, 84)]
             ],  # platforms spec
             [
+                [(440, 320), (460, 320), (480, 320), (500, 320)]
+            ],  # coins spec
+            [
             ]  # enemies spec
         ),
         (  # 2nd level
@@ -225,8 +258,9 @@ class Game(pygame.sprite.Sprite):
         self.pieces = pygame.sprite.Group()
         self.bullets = pygame.sprite.Group()
         self.platforms = pygame.sprite.Group()
+        self.coins = pygame.sprite.Group()
         self.level = 1
-        self.ppos, self.width, ground, platforms, enemies\
+        self.ppos, self.width, ground, platforms, coins, enemies\
         = Game._levels[self.level]
         for i in range(len(ground)):
             piece = pygame.image.load('gfx/01/p{0}.png'.format(i)).convert()
@@ -239,6 +273,8 @@ class Game(pygame.sprite.Sprite):
                     curpos += num * 32
         for x, y, o in platforms[self.level - 1]:
             self.platforms.add(Platform((x, y), o))
+        for x, y in coins[self.level - 1]:
+            self.coins.add(Coin((x, y)))
         self.hero = Hero((15, self.ppos))
 
     def update(self, moving):
@@ -246,8 +282,10 @@ class Game(pygame.sprite.Sprite):
             self.x += 3
             self.pieces.update()
             self.platforms.update(False)
+            self.coins.update(False)
         else:
             self.platforms.update(True)
+            self.coins.update(True)
 
     def draw(self):
         x = self.x % 640
@@ -269,6 +307,10 @@ class Game(pygame.sprite.Sprite):
             moving = self.hero.ride(keys)
             self.hero.update(self.x >= self.width)
             die = True
+            for p in self.platforms:
+                if pygame.sprite.collide_rect(p, self.hero):
+                    self.hero.collision(p.rect)
+                    die = False  # ?!
             for p in self.pieces:
                 if pygame.sprite.collide_rect(p, self.hero):
                     self.hero.collision(p.rect)
@@ -279,6 +321,7 @@ class Game(pygame.sprite.Sprite):
             self.bullets.update()
             self.draw()
             self.platforms.draw(self.screen)
+            self.coins.draw(self.screen)
             self.hero.draw(self.screen)
             self.bullets.draw(self.screen)
             pygame.display.update()
