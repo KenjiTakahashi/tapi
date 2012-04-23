@@ -19,6 +19,14 @@ def _makeani(path, n):
     return l
 
 
+def _makethumb():
+    image = pygame.image.load('gfx/gripe.run_right.png')
+    img = pygame.Surface((32, 32))
+    img.blit(image, (0, 0), (0, 0, 32, 32))
+    img.set_colorkey((255, 0, 255))
+    return pygame.transform.scale(img, (16, 16))
+
+
 def _makebullet(path=""):
     image = pygame.image.load('gfx/bullet{0}.png'.format(path))
     l = list()
@@ -85,8 +93,6 @@ class Hero(pygame.sprite.Sprite):
         self.vx = 0
         if key[K_UP] and self.y > self.ground - 50:
             self.vy -= 1
-        if key[K_DOWN]:
-            self.shot()
         if key[K_LEFT]:
             self.vx = -3
             self.image = Hero._anileft[self.ani]
@@ -266,6 +272,9 @@ class Coin(pygame.sprite.Sprite):
             self.ani %= 8
             self.image = Coin._images[self.ani]
 
+    def draw(self, screen):
+        screen.blit(self.image, (self.rect.left, self.rect.top))
+
 
 class Platform(pygame.sprite.Sprite):
     _image = pygame.image.load('gfx/01/platform.png')
@@ -347,15 +356,21 @@ class Game(pygame.sprite.Sprite):
         (  # 2nd level
         )
     ]
+    _thumb = _makethumb()
 
     def __init__(self):
         super(Game, self).__init__()
         pygame.init()
+        pygame.font.init()
+        self.font = pygame.font.Font(None, 20)
         self.screen = pygame.display.set_mode((640, 480))
         self.clock = pygame.time.Clock()
         self.image = pygame.image.load('gfx/01/b.png').convert()
         self.rect = self.image.get_rect()
         self.x = 0
+        self.points = 0
+        self.lifes = 3
+        self.coin = Coin((3, 5))
         self.pieces = pygame.sprite.Group()
         self.bullets = pygame.sprite.Group()
         self.platforms = pygame.sprite.Group()
@@ -381,7 +396,9 @@ class Game(pygame.sprite.Sprite):
                 self.foes.add(ShootingFoe((x, y), o, self.bullets))
         self.hero = Hero((15, self.ppos))
 
-    def update(self, moving):
+    def update(self, moving, points=0, lifes=0):
+        self.points += points
+        self.lifes -= lifes
         if not self.hero.shouldNotMove() and moving:
             self.x += 3
             self.pieces.update()
@@ -398,6 +415,15 @@ class Game(pygame.sprite.Sprite):
         self.screen.blit(self.image, (0, 0), (x, 0, 640 - x, 480))
         if x:
             self.screen.blit(self.image, (640 - x, 0), (0, 0, 640, 480))
+        pygame.draw.rect(self.screen, (255, 255, 255), (0, 0, 640, 24))
+        self.screen.blit(self.font.render("Lifes: ", 1, (0, 0, 0),), (550, 6))
+        self.screen.blit(
+            self.font.render(
+                ': {0}'.format(self.points), 1, (0, 0, 0)
+            ), (19, 6)
+        )
+        for i in range(self.lifes):
+            self.screen.blit(Game._thumb, (590 + 14 * i, 3))
         self.pieces.draw(self.screen)
 
     def run(self):
@@ -408,7 +434,7 @@ class Game(pygame.sprite.Sprite):
                     pygame.quit()
                     exit()
             keys = pygame.key.get_pressed()
-            if keys[K_LCTRL]:
+            if keys[K_LCTRL] or keys[K_DOWN]:
                 self.hero.shot(self.bullets)
             moving = self.hero.ride(keys)
             self.hero.update(self.x >= self.width)
@@ -425,7 +451,9 @@ class Game(pygame.sprite.Sprite):
                 pass
             self.update(moving)
             self.bullets.update()
+            self.coin.update(True)
             self.draw()
+            self.coin.draw(self.screen)
             self.platforms.draw(self.screen)
             self.coins.draw(self.screen)
             self.hero.draw(self.screen)
