@@ -60,8 +60,16 @@ def _makecoin():
 
 
 class Hero(pygame.sprite.Sprite):
-    _anileft = _makeani('gfx/gripe.run_left.png', 8)
-    _aniright = _makeani('gfx/gripe.run_right.png', 8)
+    _ani = (
+        _makeani('gfx/gripe.run_right.png', 8),
+        _makeani('gfx/gripe.run_left.png', 8)
+    )
+    _jump = (
+        pygame.image.load('gfx/gripe.jump_right.png'),
+        pygame.image.load('gfx/gripe.jump_left.png')
+    )
+    _jump[0].set_colorkey((255, 0, 255))
+    _jump[1].set_colorkey((255, 0, 255))
 
     def __init__(self, position):
         super(Hero, self).__init__()
@@ -70,21 +78,41 @@ class Hero(pygame.sprite.Sprite):
         self.prev = position
         self.vx = self.vy = 0
         self.ani = 0
-        self.image = Hero._aniright[self.ani]
+        self.direction = 0
+        self.image = Hero._ani[self.direction][self.ani]
         self.rect = self.image.get_rect()
         self.rect.left = self.x
         self.rect.top = self.y
         self.collided = False
         self.wait = 0
-        self.direction = 0
+        self.jump = False
+        self.offset = 100
+        self.flying = 15
+        self.ooffset = self.offset
+        self.hang = 0
 
     def update(self, end):
         self.prev = self.x, self.y
         self.x += self.vx
-        if self.y > self.ground - 90 or self.vy > 0:  # we can hang, no good
-            self.y += self.vy
-        if self.y < self.ground:
-            self.vy += 0.4
+        if self.jump:
+            if self.offset:
+                self.y -= self.flying
+                self.offset -= self.flying
+                self.flying -= 1
+                if not self.offset:
+                    self.hang = 3
+            elif not self.hang:
+                self.flying += 1
+                self.y += self.flying
+            else:
+                self.hang -= 1
+            if self.y == self.ground:
+                self.offset = self.ooffset
+                self.jump = False
+                self.flying = 15
+            self.image = Hero._jump[self.direction]
+        else:
+            self.image = Hero._ani[self.direction][self.ani]
         if self.x < 0:
             self.x = 0
         if self.x > 608:
@@ -97,20 +125,23 @@ class Hero(pygame.sprite.Sprite):
         if self.wait:
             self.wait -= 1
 
-    def ride(self, key):
+    def animate(self):
         self.ani += 1
         self.ani %= 8
+
+    def ride(self, key):
         self.vx = 0
-        if key[K_UP] and self.y > self.ground - 90:
-            self.vy -= 1
+        if key[K_UP] and self.ground == self.y:
+            self.animate()
+            self.jump = True
         if key[K_LEFT]:
+            self.animate()
             self.vx = -3
-            self.image = Hero._anileft[self.ani]
             self.direction = 1
         elif key[K_RIGHT]:
+            self.animate()
             self.vx = 3
             self.direction = 0
-            self.image = Hero._aniright[self.ani]
             return self.x == 340
 
     def collision(self, rect):
@@ -519,17 +550,18 @@ class Game(pygame.sprite.Sprite):
                 self.foes, self.bullets, False, True
             ):
                 f.die()
-            die = True
-            for p in self.platforms:
-                if pygame.sprite.collide_rect(p, self.hero):
-                    self.hero.collision(p.rect)
-                    die = False  # ?!
-            for p in self.pieces:
-                if pygame.sprite.collide_rect(p, self.hero):
-                    self.hero.collision(p.rect)
-                    die = False
-            if die and self.hero.die():
-                pass
+            pygame.sprite.groupcollide(self.bullets, self.pieces, True, False)
+            #die = True
+            #for p in self.platforms:
+                #if pygame.sprite.collide_rect(p, self.hero):
+                    #self.hero.collision(p.rect)
+                    #die = False  # ?!
+            #for p in self.pieces:
+                #if pygame.sprite.collide_rect(p, self.hero):
+                    #self.hero.collision(p.rect)
+                    #die = False
+            #if die and self.hero.die():
+                #pass
             self.update(moving)
             self.coin.update(True)
             self.draw()
