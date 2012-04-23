@@ -71,7 +71,7 @@ class Hero(pygame.sprite.Sprite):
     def update(self, end):
         self.prev = self.x, self.y
         self.x += self.vx
-        if self.y > self.ground - 50 or self.vy > 0:  # we can hang, no good
+        if self.y > self.ground - 90 or self.vy > 0:  # we can hang, no good
             self.y += self.vy
         if self.y < self.ground:
             self.vy += 0.4
@@ -91,7 +91,7 @@ class Hero(pygame.sprite.Sprite):
         self.ani += 1
         self.ani %= 8
         self.vx = 0
-        if key[K_UP] and self.y > self.ground - 50:
+        if key[K_UP] and self.y > self.ground - 90:
             self.vy -= 1
         if key[K_LEFT]:
             self.vx = -3
@@ -396,8 +396,7 @@ class Game(pygame.sprite.Sprite):
                 self.foes.add(ShootingFoe((x, y), o, self.bullets))
         self.hero = Hero((15, self.ppos))
 
-    def update(self, moving, points=0, lifes=0):
-        self.points += points
+    def update(self, moving, lifes=0):
         self.lifes -= lifes
         if not self.hero.shouldNotMove() and moving:
             self.x += 3
@@ -439,6 +438,10 @@ class Game(pygame.sprite.Sprite):
             moving = self.hero.ride(keys)
             self.hero.update(self.x >= self.width)
             die = True
+            for c in self.coins:
+                if pygame.sprite.collide_rect(c, self.hero):
+                    c.kill()
+                    self.points += 1
             for p in self.platforms:
                 if pygame.sprite.collide_rect(p, self.hero):
                     self.hero.collision(p.rect)
