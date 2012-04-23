@@ -121,7 +121,7 @@ class Hero(pygame.sprite.Sprite):
         if not self.wait:
             if self.direction:
                 vx = -5
-                x = self.rect.left
+                x = self.rect.left - 16
             else:
                 vx = 5
                 x = self.rect.right
@@ -138,6 +138,10 @@ class Hero(pygame.sprite.Sprite):
 class NormalFoe(pygame.sprite.Sprite):
     _left = _makeani('gfx/wheelie_left.png', 4)
     _right = _makeani('gfx/wheelie_right.png', 4)
+    _dieleft = pygame.image.load('gfx/wheelie_die_left.png')
+    _dieleft.set_colorkey((255, 0, 255))
+    _dieright = pygame.image.load('gfx/wheelie_die_right.png')
+    _dieright.set_colorkey((255, 0, 255))
 
     def __init__(self, position, offset):
         super(NormalFoe, self).__init__()
@@ -150,11 +154,14 @@ class NormalFoe(pygame.sprite.Sprite):
         self.rect.top = self.y
         self.offset = offset
         self.ooffset = offset
+        self.died = 0
 
     def update(self, yes):
-        if self.x + self.rect.width < 0:
+        if self.died:
+            self.died -= 1
+        if self.x + self.rect.width < 0 or self.died == 1:
             self.kill()
-        else:
+        elif not self.died:
             self.ani += 1
             self.ani %= 4
             if not yes:
@@ -171,10 +178,21 @@ class NormalFoe(pygame.sprite.Sprite):
                 self.offset = self.ooffset
             self.rect.left = self.x
 
+    def die(self):
+        if self.offset:
+            self.image = NormalFoe._dieright
+        else:
+            self.image = NormalFoe._dieleft
+        self.died = 10
+
 
 class ShootingFoe(pygame.sprite.Sprite):
     _left = _makeani('gfx/grog.left.png', 8)
     _right = _makeani('gfx/grog.right.png', 8)
+    _dieleft = pygame.image.load('gfx/grog.left.die.png')
+    _dieleft.set_colorkey((255, 0, 255))
+    _dieright = pygame.image.load('gfx/grog.right.die.png')
+    _dieright.set_colorkey((255, 0, 255))
 
     def __init__(self, position, offset, bullets):
         super(ShootingFoe, self).__init__()
@@ -188,11 +206,15 @@ class ShootingFoe(pygame.sprite.Sprite):
         self.offset = offset
         self.ooffset = offset
         self.bullets = bullets
+        self.wait = 0
+        self.died = 0
 
     def update(self, yes):
-        if self.x + self.rect.width < 0:
+        if self.died:
+            self.died -= 1
+        if self.x + self.rect.width < 0 or self.died == 1:
             self.kill()
-        else:
+        elif not self.died:
             self.ani += 1
             self.ani %= 8
             if not yes:
@@ -208,8 +230,11 @@ class ShootingFoe(pygame.sprite.Sprite):
             if self.x == self.ground:
                 self.offset = self.ooffset
             self.rect.left = self.x
-            if randint(0, 80) == 0:
+            if not self.wait and self.x < 640:
                 self.fire()
+                self.wait = 40
+            elif self.wait:
+                self.wait -= 1
 
     def fire(self):
         if self.offset:
@@ -217,8 +242,15 @@ class ShootingFoe(pygame.sprite.Sprite):
             x = self.rect.right
         else:
             vx = -5
-            x = self.rect.left
+            x = self.rect.left - 16
         self.bullets.add((Bullet(0, vx, (x, self.rect.centery - 5))))
+
+    def die(self):
+        if self.offset:
+            self.image = ShootingFoe._dieright
+        else:
+            self.image = ShootingFoe._dieleft
+        self.died = 10
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -237,7 +269,7 @@ class Bullet(pygame.sprite.Sprite):
         self.rect.top = self.y
         self.vx = vx
 
-    def update(self):
+    def update(self, yes):
         if self.x > self.ground + 120 or self.x < self.ground - 120:
             self.kill()
         else:
@@ -245,6 +277,8 @@ class Bullet(pygame.sprite.Sprite):
             self.ani %= 4
             self.image = self.type == 1\
             and Bullet._ally[self.ani] or Bullet._foe[self.ani]
+            if not yes:
+                self.x -= 3
             self.x += self.vx
             self.rect.left = self.x
 
@@ -404,10 +438,12 @@ class Game(pygame.sprite.Sprite):
             self.platforms.update(False)
             self.coins.update(False)
             self.foes.update(False)
+            self.bullets.update(False)
         else:
             self.platforms.update(True)
             self.coins.update(True)
             self.foes.update(True)
+            self.bullets.update(True)
 
     def draw(self):
         x = self.x % 640
@@ -437,11 +473,15 @@ class Game(pygame.sprite.Sprite):
                 self.hero.shot(self.bullets)
             moving = self.hero.ride(keys)
             self.hero.update(self.x >= self.width)
-            die = True
             for c in self.coins:
                 if pygame.sprite.collide_rect(c, self.hero):
                     c.kill()
                     self.points += 1
+            for f in pygame.sprite.groupcollide(
+                self.foes, self.bullets, False, True
+            ):
+                f.die()
+            die = True
             for p in self.platforms:
                 if pygame.sprite.collide_rect(p, self.hero):
                     self.hero.collision(p.rect)
@@ -453,7 +493,6 @@ class Game(pygame.sprite.Sprite):
             if die and self.hero.die():
                 pass
             self.update(moving)
-            self.bullets.update()
             self.coin.update(True)
             self.draw()
             self.coin.draw(self.screen)
