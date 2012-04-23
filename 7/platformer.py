@@ -446,7 +446,7 @@ class Game(pygame.sprite.Sprite):
         self.coins = pygame.sprite.Group()
         self.foes = pygame.sprite.Group()
         self.level = 1
-        self.ppos, self.width, ground, platforms, coins, foes, exit\
+        self.ppos, self.width, ground, platforms, coins, foes, exit_\
         = Game._levels[self.level]
         for i in range(len(ground)):
             piece = pygame.image.load('gfx/01/p{0}.png'.format(i)).convert()
@@ -463,7 +463,7 @@ class Game(pygame.sprite.Sprite):
                 self.foes.add(NormalFoe((x, y), o))
             else:
                 self.foes.add(ShootingFoe((x, y), o, self.bullets))
-        self.exit = Exit(exit)
+        self.exit = Exit(exit_)
         self.hero = Hero((15, self.ppos))
 
     def update(self, moving, lifes=0):
