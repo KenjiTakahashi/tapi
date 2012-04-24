@@ -516,10 +516,11 @@ class Game(pygame.sprite.Sprite):
             (1030, 353)  # exit
         ),
         (  # 2nd level
-            401,
-            896,
+            401,  # player starting position
+            1396,  # level length
             [
-                [(14, 432, 0), (6, 400, 710), (4, 300, 910), (6, 400, 1195)],
+                [(14, 432, 0), (6, 400, 710), (4, 300, 910), (6, 400, 1195),
+                (4, 336, 1425), (4, 272, 1580), (4, 208, 1730)],
                 [(14, 448, 0), (6, 416, 710), (6, 416, 1195)],
                 [(14, 464, 0), (6, 432, 710), (6, 448, 710), (6, 464, 710),
                 (6, 432, 1195), (6, 448, 1195), (6, 464, 1195)]
@@ -532,12 +533,16 @@ class Game(pygame.sprite.Sprite):
             [
                 (470, 320), (490, 320), (510, 320), (530, 320),
                 (720, 280), (740, 280), (780, 280), (800, 200),
+                (1225, 240)
             ],  # coins spec
             [
                 (0, 715, 369, 120),
-                (1, 1205, 369, 120)
+                (1, 1205, 369, 120),
+                (0, 1430, 305, 93),
+                (0, 1580, 241, 93),
+                (1, 1740, 177, 93)
             ],  # foes spec
-            (2060, 353)
+            (1790, 145)
         )
     ]
     _thumb = _makethumb()
@@ -551,7 +556,7 @@ class Game(pygame.sprite.Sprite):
         self.points = 0
         self.start_points = 0
         self.lifes = 3
-        self.level = 2
+        self.level = 1
         self.coin = Coin((3, 5))
         self.ended = False
         self.reset()
@@ -592,12 +597,13 @@ class Game(pygame.sprite.Sprite):
         self.star8_points = self.points
         self.x = 0
         self.image = pygame.image.load(
-            'gfx/0{0}/b.png'.format(self.level)
+            'gfx/0{0}/b.png'.format(self.level < 3 and self.level or 2)
         ).convert()
         self.rect = self.image.get_rect()
         self.pieces = pygame.sprite.Group()
         if self.level > 2:
-            return self.end()
+            self.ended = True
+            return
         self.bullets = pygame.sprite.Group()
         self.platforms = pygame.sprite.Group()
         self.coins = pygame.sprite.Group()
@@ -623,16 +629,6 @@ class Game(pygame.sprite.Sprite):
                 self.foes.add(ShootingFoe((x, y), o, self.bullets))
         self.exit = Exit(exit_)
         self.hero = Hero((15, self.ppos))
-
-    def end(self):
-        self.ended = True
-        self.draw()
-        self.screen.blit(
-            self.font.render(
-                "YOUR PRINCESS IS IN ANOTHER CASTLE", 1, (0, 0, 0)
-            ), (180, 230)
-        )
-        pygame.display.update()
 
     def run(self):
         while not self.ended:
@@ -697,6 +693,13 @@ class Game(pygame.sprite.Sprite):
             self.foes.draw(self.screen)
             self.bullets.draw(self.screen)
             pygame.display.update()
+        self.draw()
+        self.screen.blit(
+            self.font.render(
+                "YOUR PRINCESS IS IN ANOTHER CASTLE", 1, (0, 0, 0)
+            ), (180, 230)
+        )
+        pygame.display.update()
 
 
 if __name__ == '__main__':
