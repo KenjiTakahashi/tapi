@@ -204,7 +204,17 @@ class Hero(pygame.sprite.Sprite):
         screen.blit(self.image, (self.rect.left, self.rect.top))
 
 
-class NormalFoe(pygame.sprite.Sprite):
+class Foe(pygame.sprite.Sprite):
+    def collision(self, hero):
+        if hero.rect.bottom - 5 <= self.rect.top:
+            self.die()
+            hero._jumpoff()
+            hero.jump = True
+        elif not self.died:
+            hero.died = True
+
+
+class NormalFoe(Foe):
     _left = _makeani('gfx/wheelie_left.png', 4)
     _right = _makeani('gfx/wheelie_right.png', 4)
     _dieleft = pygame.image.load('gfx/wheelie_die_left.png')
@@ -255,7 +265,7 @@ class NormalFoe(pygame.sprite.Sprite):
         self.died = 10
 
 
-class ShootingFoe(pygame.sprite.Sprite):
+class ShootingFoe(Foe):
     _left = _makeani('gfx/grog.left.png', 8)
     _right = _makeani('gfx/grog.right.png', 8)
     _dieleft = pygame.image.load('gfx/grog.left.die.png')
@@ -609,6 +619,9 @@ class Game(pygame.sprite.Sprite):
                         if pygame.sprite.collide_rect(b, f):
                             b.kill()
                             f.die()
+                for f in self.foes:
+                    if pygame.sprite.collide_rect(f, self.hero):
+                        f.collision(self.hero)
                 die = True
                 for p in self.pieces:
                     if pygame.sprite.collide_rect(p, self.hero):
