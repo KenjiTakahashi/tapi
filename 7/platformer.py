@@ -598,13 +598,17 @@ class Game(pygame.sprite.Sprite):
                     if pygame.sprite.collide_rect(c, self.hero):
                         c.kill()
                         self.points += 1
-                for f in pygame.sprite.groupcollide(
-                    self.foes, self.bullets, False, True
-                ):
-                    f.die()
-                pygame.sprite.groupcollide(
-                    self.bullets, self.pieces, True, False
-                )
+                for b in self.bullets:
+                    for p in self.pieces:
+                        if pygame.sprite.collide_rect(b, p):
+                            b.kill()
+                    if pygame.sprite.collide_rect(b, self.hero):
+                        b.kill()
+                        self.hero.died = True
+                    for f in self.foes:
+                        if pygame.sprite.collide_rect(b, f):
+                            b.kill()
+                            f.die()
                 die = True
                 for p in self.pieces:
                     if pygame.sprite.collide_rect(p, self.hero):
