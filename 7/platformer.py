@@ -174,7 +174,7 @@ class Hero(pygame.sprite.Sprite):
         if not self.jump and rect.top + 2 <= self.rect.bottom:
             self.x, self.y = self.prev
             self.rect.left = self.x
-            self.rec.top = self.y
+            self.rect.top = self.y
             self.collided = True
 
     def shouldNotMove(self):
@@ -511,7 +511,7 @@ class Game(pygame.sprite.Sprite):
             [
                 [(0, 450, 369, 72), (1, 910, 385, 84)]
             ],  # foes spec
-            (1030, 352)  # exit
+            (1030, 353)  # exit
         ),
         (  # 2nd level
         )
@@ -525,37 +525,13 @@ class Game(pygame.sprite.Sprite):
         self.font = pygame.font.Font(None, 20)
         self.screen = pygame.display.set_mode((640, 480))
         self.clock = pygame.time.Clock()
-        self.image = pygame.image.load('gfx/01/b.png').convert()
         self.rect = self.image.get_rect()
-        self.x = 0
         self.points = 0
+        self.start_points = 0
         self.lifes = 3
-        self.coin = Coin((3, 5))
-        self.pieces = pygame.sprite.Group()
-        self.bullets = pygame.sprite.Group()
-        self.platforms = pygame.sprite.Group()
-        self.coins = pygame.sprite.Group()
-        self.foes = pygame.sprite.Group()
         self.level = 1
-        self.ppos, self.width, ground, platforms, coins, foes, exit_\
-        = Game._levels[self.level]
-        for i in range(len(ground)):
-            piece = pygame.image.load('gfx/01/p{0}.png'.format(i)).convert()
-            piece.set_colorkey((255, 0, 255))
-            for num, height, start in ground[i]:
-                for j in range(num):
-                    self.pieces.add(Piece(piece, (32 * j + start, height)))
-        for x, y, o in platforms[self.level - 1]:
-            self.platforms.add(Platform((x, y), o))
-        for x, y in coins[self.level - 1]:
-            self.coins.add(Coin((x, y)))
-        for t, x, y, o in foes[self.level - 1]:
-            if not t:
-                self.foes.add(NormalFoe((x, y), o))
-            else:
-                self.foes.add(ShootingFoe((x, y), o, self.bullets))
-        self.exit = Exit(exit_)
-        self.hero = Hero((15, self.ppos))
+        self.coin = Coin((3, 5))
+        self.reset()
 
     def update(self, moving):
         if not self.hero.shouldNotMove() and moving:
@@ -590,7 +566,37 @@ class Game(pygame.sprite.Sprite):
         self.pieces.draw(self.screen)
 
     def reset(self):
-        pass
+        self.start_points = self.points
+        self.x = 0
+        self.image = pygame.image.load(
+            'gfx/0{0}/b.png'.format(self.level)
+        ).convert()
+        self.pieces = pygame.sprite.Group()
+        self.bullets = pygame.sprite.Group()
+        self.platforms = pygame.sprite.Group()
+        self.coins = pygame.sprite.Group()
+        self.foes = pygame.sprite.Group()
+        self.ppos, self.width, ground, platforms, coins, foes, exit_\
+        = Game._levels[self.level]
+        for i in range(len(ground)):
+            piece = pygame.image.load(
+                'gfx/0{0}/p{1}.png'.format(self.level, i)
+            ).convert()
+            piece.set_colorkey((255, 0, 255))
+            for num, height, start in ground[i]:
+                for j in range(num):
+                    self.pieces.add(Piece(piece, (32 * j + start, height)))
+        for x, y, o in platforms[self.level - 1]:
+            self.platforms.add(Platform((x, y), o))
+        for x, y in coins[self.level - 1]:
+            self.coins.add(Coin((x, y)))
+        for t, x, y, o in foes[self.level - 1]:
+            if not t:
+                self.foes.add(NormalFoe((x, y), o))
+            else:
+                self.foes.add(ShootingFoe((x, y), o, self.bullets))
+        self.exit = Exit(exit_)
+        self.hero = Hero((15, self.ppos))
 
     def run(self):
         while True:
@@ -634,10 +640,14 @@ class Game(pygame.sprite.Sprite):
                         moving = self.x < self.width
                     else:
                         p.removehero()
+                if self.exit.rect.contains(self.hero.rect):
+                    self.level += 1
+                    self.reset()
                 if die:
                     self.hero.die()
             elif self.hero.y > 480:
                 self.lifes -= 1
+                self.points = self.start_points
                 self.reset()
             self.hero.update(self.x >= self.width)
             self.update(moving and not self.hero.died)
