@@ -113,6 +113,9 @@ class Hero(pygame.sprite.Sprite):
                 else:
                     self.hang -= 1
                 self.image = Hero._jump[self.direction]
+                if self.y > 480:
+                    self.died = True
+                    self.y -= 48
             else:
                 self.image = Hero._ani[self.direction][self.ani]
             if self.dying:
@@ -390,6 +393,12 @@ class Platform(pygame.sprite.Sprite):
         self.rect.top = self.y
         self.offset = offset
         self.ooffset = offset
+        self.hero = False
+        self.x_ = 0
+
+    def _updateothers(self, v):
+        if self.hero:
+            self.hero.x += v
 
     def update(self, yes):
         if self.x + self.rect.width < 0:
@@ -397,15 +406,31 @@ class Platform(pygame.sprite.Sprite):
         else:
             if not yes:
                 self.x -= 3
+                self._updateothers(-3)
                 self.ground -= 3
             if self.offset:
                 self.x += 3
+                self._updateothers(3)
                 self.offset -= 3
             else:
                 self.x -= 3
+                self._updateothers(-3)
             if self.x == self.ground:
                 self.offset = self.ooffset
             self.rect.left = self.x
+            if self.hero:
+                self.hero.rect.x = self.hero.x
+
+    def removehero(self):
+        self.hero = False
+
+    def collision(self, hero):
+        if not self.hero:
+            hero.dying = False
+            hero._jumpoff()
+        self.hero = hero
+        self.hero.y = self.rect.top - 31
+        self.hero.rect.top = self.hero.y
 
 
 class Piece(pygame.sprite.Sprite):
@@ -585,22 +610,29 @@ class Game(pygame.sprite.Sprite):
                     if pygame.sprite.collide_rect(p, self.hero):
                         die = False
                         self.hero.collision(p.rect)
+                for p in self.platforms:
+                    if pygame.sprite.collide_rect(p, self.hero):
+                        die = False
+                        p.collision(self.hero)
+                        moving = self.x < self.width
+                    else:
+                        p.removehero()
                 if die:
                     self.hero.die()
             elif self.hero.y > 480:
-                self.hero.kill()
+                self.lifes -= 1
                 self.reset()
             self.hero.update(self.x >= self.width)
-            self.update(moving)
+            self.update(moving and not self.hero.died)
             self.coin.update(True)
             self.draw()
             self.coin.draw(self.screen)
             self.platforms.draw(self.screen)
             self.coins.draw(self.screen)
+            self.exit.draw(self.screen)
             self.hero.draw(self.screen)
             self.foes.draw(self.screen)
             self.bullets.draw(self.screen)
-            self.exit.draw(self.screen)
             pygame.display.update()
 
 
