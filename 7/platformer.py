@@ -151,7 +151,7 @@ class Hero(pygame.sprite.Sprite):
 
     def ride(self, key):
         self.vx = 0
-        if key[K_UP] and self.ground == self.y:
+        if key[K_UP]:
             self.jump = True
         if key[K_LEFT]:
             self._animate()
@@ -523,6 +523,7 @@ class Game(pygame.sprite.Sprite):
                 (6, 432, 1195), (6, 448, 1195), (6, 464, 1195)]
             ],  # ground spec
             [
+                (100, 400, 165),
                 (460, 432, 165),
                 (930, 400, 165)
             ],  # platforms spec
@@ -670,7 +671,7 @@ class Game(pygame.sprite.Sprite):
                     if pygame.sprite.collide_rect(p, self.hero):
                         die = False
                         p.collision(self.hero)
-                        moving = self.x < self.width
+                        moving = self.x < self.width and self.hero.x == 340
                     else:
                         p.removehero()
                 if self.exit.rect.contains(self.hero.rect):
