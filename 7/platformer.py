@@ -503,17 +503,38 @@ class Game(pygame.sprite.Sprite):
                 ]
             ],  # ground spec
             [
-                [(720, 400, 84)]
+                (720, 400, 84)
             ],  # platforms spec
             [
-                [(440, 320), (460, 320), (480, 320), (500, 320)]
+                (440, 320), (460, 320), (480, 320), (500, 320)
             ],  # coins spec
             [
-                [(0, 450, 369, 72), (1, 910, 385, 84)]
+                (0, 450, 369, 72), (1, 910, 385, 84)
             ],  # foes spec
             (1030, 353)  # exit
         ),
         (  # 2nd level
+            401,
+            896,
+            [
+                [(14, 432, 0), (6, 400, 710), (4, 300, 910), (6, 400, 1195)],
+                [(14, 448, 0), (6, 416, 710), (6, 416, 1195)],
+                [(14, 464, 0), (6, 432, 710), (6, 448, 710), (6, 464, 710),
+                (6, 432, 1195), (6, 448, 1195), (6, 464, 1195)]
+            ],  # ground spec
+            [
+                (460, 432, 165),
+                (930, 400, 165)
+            ],  # platforms spec
+            [
+                (470, 320), (490, 320), (510, 320), (530, 320),
+                (720, 280), (740, 280), (780, 280), (800, 200),
+            ],  # coins spec
+            [
+                (0, 715, 369, 120),
+                (1, 1205, 369, 120)
+            ],  # foes spec
+            (2060, 353)
         )
     ]
     _thumb = _makethumb()
@@ -521,16 +542,15 @@ class Game(pygame.sprite.Sprite):
     def __init__(self):
         super(Game, self).__init__()
         pygame.init()
-        pygame.font.init()
         self.font = pygame.font.Font(None, 20)
         self.screen = pygame.display.set_mode((640, 480))
         self.clock = pygame.time.Clock()
-        self.rect = self.image.get_rect()
         self.points = 0
         self.start_points = 0
         self.lifes = 3
-        self.level = 1
+        self.level = 2
         self.coin = Coin((3, 5))
+        self.ended = False
         self.reset()
 
     def update(self, moving):
@@ -555,7 +575,7 @@ class Game(pygame.sprite.Sprite):
         if x:
             self.screen.blit(self.image, (640 - x, 0), (0, 0, 640, 480))
         pygame.draw.rect(self.screen, (255, 255, 255), (0, 0, 640, 24))
-        self.screen.blit(self.font.render("Lifes: ", 1, (0, 0, 0),), (550, 6))
+        self.screen.blit(self.font.render("Lifes: ", 1, (0, 0, 0)), (550, 6))
         self.screen.blit(
             self.font.render(
                 ': {0}'.format(self.points), 1, (0, 0, 0)
@@ -566,12 +586,15 @@ class Game(pygame.sprite.Sprite):
         self.pieces.draw(self.screen)
 
     def reset(self):
-        self.start_points = self.points
+        self.star8_points = self.points
         self.x = 0
         self.image = pygame.image.load(
             'gfx/0{0}/b.png'.format(self.level)
         ).convert()
+        self.rect = self.image.get_rect()
         self.pieces = pygame.sprite.Group()
+        if self.level > 2:
+            return self.end()
         self.bullets = pygame.sprite.Group()
         self.platforms = pygame.sprite.Group()
         self.coins = pygame.sprite.Group()
@@ -586,11 +609,11 @@ class Game(pygame.sprite.Sprite):
             for num, height, start in ground[i]:
                 for j in range(num):
                     self.pieces.add(Piece(piece, (32 * j + start, height)))
-        for x, y, o in platforms[self.level - 1]:
+        for x, y, o in platforms:
             self.platforms.add(Platform((x, y), o))
-        for x, y in coins[self.level - 1]:
+        for x, y in coins:
             self.coins.add(Coin((x, y)))
-        for t, x, y, o in foes[self.level - 1]:
+        for t, x, y, o in foes:
             if not t:
                 self.foes.add(NormalFoe((x, y), o))
             else:
@@ -598,8 +621,18 @@ class Game(pygame.sprite.Sprite):
         self.exit = Exit(exit_)
         self.hero = Hero((15, self.ppos))
 
+    def end(self):
+        self.ended = True
+        self.draw()
+        self.screen.blit(
+            self.font.render(
+                "YOUR PRINCESS IS IN ANOTHER CASTLE", 1, (0, 0, 0)
+            ), (180, 230)
+        )
+        pygame.display.update()
+
     def run(self):
-        while True:
+        while not self.ended:
             self.clock.tick(30)
             for event in pygame.event.get():
                 if event.type == QUIT:
