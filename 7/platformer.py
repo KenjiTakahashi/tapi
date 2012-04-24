@@ -71,6 +71,7 @@ class Hero(pygame.sprite.Sprite):
     )
     _jump[0].set_colorkey((255, 0, 255))
     _jump[1].set_colorkey((255, 0, 255))
+    _die = _makeani('gfx/gripe.die.png', 4)
 
     def __init__(self, position):
         super(Hero, self).__init__()
@@ -92,38 +93,48 @@ class Hero(pygame.sprite.Sprite):
         self.ooffset = self.offset
         self.hang = 0
         self.dying = False
+        self.died = False
+        self.dieani = 10
 
     def update(self, end):
-        self.prev = self.x, self.y
-        self.x += self.vx
-        if self.jump:
-            if self.offset:
-                self.y -= self.flying
-                self.offset -= self.flying
-                self.flying -= 1
-                if not self.offset:
-                    self.hang = 3
-            elif not self.hang:
-                self.flying += 1
-                self.y += self.flying
+        if not self.died:
+            self.prev = self.x, self.y
+            self.x += self.vx
+            if self.jump:
+                if self.offset:
+                    self.y -= self.flying
+                    self.offset -= self.flying
+                    self.flying -= 1
+                    if not self.offset:
+                        self.hang = 3
+                elif not self.hang:
+                    self.flying += 1
+                    self.y += self.flying
+                else:
+                    self.hang -= 1
+                self.image = Hero._jump[self.direction]
             else:
-                self.hang -= 1
-            self.image = Hero._jump[self.direction]
+                self.image = Hero._ani[self.direction][self.ani]
+            if self.dying:
+                self.y += 7
+            if self.x < 0:
+                self.x = 0
+            if self.x > 608:
+                self.x = 608
+            if self.x > 340 and not end:
+                self.x = 340
+            if self.wait:
+                self.wait -= 1
         else:
-            self.image = Hero._ani[self.direction][self.ani]
-        if self.dying:
-            self.y += 7
-        if self.x < 0:
-            self.x = 0
-        if self.x > 608:
-            self.x = 608
+            self.x += 3
+            self.image = Hero._die[self.dieani % 4]
+            self.dieani -= 1
+            if self.dieani >= 5:
+                self.y -= 3
+            else:
+                self.y += 3
         self.rect.left = self.x
         self.rect.top = self.y
-        if self.x > 340 and not end:
-            self.x = 340
-            self.rect.left = self.x
-        if self.wait:
-            self.wait -= 1
 
     def _jumpoff(self):
         self.ground = self.y
@@ -179,6 +190,9 @@ class Hero(pygame.sprite.Sprite):
     def die(self):
         if not self.jump:
             self.dying = True
+            if self.y > 480:
+                self.died = True
+                self.y -= 32
 
     def draw(self, screen):
         screen.blit(self.image, (self.rect.left, self.rect.top))
@@ -537,6 +551,9 @@ class Game(pygame.sprite.Sprite):
             self.screen.blit(Game._thumb, (590 + 14 * i, 3))
         self.pieces.draw(self.screen)
 
+    def reset(self):
+        pass
+
     def run(self):
         while True:
             self.clock.tick(30)
@@ -544,26 +561,32 @@ class Game(pygame.sprite.Sprite):
                 if event.type == QUIT:
                     pygame.quit()
                     exit()
-            keys = pygame.key.get_pressed()
-            if keys[K_LCTRL] or keys[K_DOWN]:
-                self.hero.shot(self.bullets)
-            moving = self.hero.ride(keys)
-            for c in self.coins:
-                if pygame.sprite.collide_rect(c, self.hero):
-                    c.kill()
-                    self.points += 1
-            for f in pygame.sprite.groupcollide(
-                self.foes, self.bullets, False, True
-            ):
-                f.die()
-            pygame.sprite.groupcollide(self.bullets, self.pieces, True, False)
-            die = True
-            for p in self.pieces:
-                if pygame.sprite.collide_rect(p, self.hero):
-                    die = False
-                    self.hero.collision(p.rect)
-            if die and self.hero.die():
-                pass
+            if not self.hero.died:
+                keys = pygame.key.get_pressed()
+                if keys[K_LCTRL] or keys[K_DOWN]:
+                    self.hero.shot(self.bullets)
+                moving = self.hero.ride(keys)
+                for c in self.coins:
+                    if pygame.sprite.collide_rect(c, self.hero):
+                        c.kill()
+                        self.points += 1
+                for f in pygame.sprite.groupcollide(
+                    self.foes, self.bullets, False, True
+                ):
+                    f.die()
+                pygame.sprite.groupcollide(
+                    self.bullets, self.pieces, True, False
+                )
+                die = True
+                for p in self.pieces:
+                    if pygame.sprite.collide_rect(p, self.hero):
+                        die = False
+                        self.hero.collision(p.rect)
+                if die:
+                    self.hero.die()
+            elif self.hero.y > 480:
+                self.hero.kill()
+                self.reset()
             self.hero.update(self.x >= self.width)
             self.update(moving)
             self.coin.update(True)
