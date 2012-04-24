@@ -161,15 +161,18 @@ class Hero(pygame.sprite.Sprite):
             return self.x == 340
 
     def collision(self, rect):
-        if not rect.colliderect((self.prev, (32, 32))):
+        if((self.jump or self.dying) and
+        not rect.colliderect((self.prev, (32, 32)))):
             self.y = rect.top - 31
             self.rect.top = self.y
             self.prev = (self.prev[0], self.y)
             self.dying = False
             self._jumpoff()
-        elif not self.jump and rect.top + 2 <= self.rect.bottom:
+        if not self.jump and rect.top + 2 <= self.rect.bottom:
+            self.x, self.y = self.prev
+            self.rect.left = self.x
+            self.rec.top = self.y
             self.collided = True
-            return True
 
     def shouldNotMove(self):
         r = self.x == 340 and self.collided
