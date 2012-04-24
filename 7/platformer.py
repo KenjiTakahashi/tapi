@@ -435,12 +435,14 @@ class Platform(pygame.sprite.Sprite):
         self.hero = False
 
     def collision(self, hero):
-        if not self.hero:
-            hero.dying = False
-            hero._jumpoff()
-        self.hero = hero
-        self.hero.y = self.rect.top - 31
-        self.hero.rect.top = self.hero.y
+        if(self.rect.bottom >= hero.prev[1] + 32 and
+        self.rect.top <= hero.rect.bottom):
+            if not self.hero:
+                hero.dying = False
+                hero._jumpoff()
+            self.hero = hero
+            self.hero.y = self.rect.top - 31
+            self.hero.rect.top = self.hero.y
 
 
 class Piece(pygame.sprite.Sprite):
