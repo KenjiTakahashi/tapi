@@ -594,7 +594,7 @@ class Game(pygame.sprite.Sprite):
         self.pieces.draw(self.screen)
 
     def reset(self):
-        self.star8_points = self.points
+        self.start_points = self.points
         self.x = 0
         self.image = pygame.image.load(
             'gfx/0{0}/b.png'.format(self.level < 3 and self.level or 2)
