@@ -56,8 +56,10 @@ class Sun(pygame.sprite.Sprite):
 
     def collide(self, item):
         try:
-            return self.rect.colliderect(pygame.rect.Rect(item, (32, 32)))
             x, y = item
+            return self.rect.colliderect(
+                pygame.rect.Rect((x - 32, y - 32), (96, 96))
+            )
         except TypeError:
             if pygame.sprite.collide_circle(self, item):
                 return 1.0
@@ -120,24 +122,19 @@ class Flame(pygame.sprite.Sprite):
 
 
 class Ship(pygame.sprite.Sprite):
-    _flames = _makeFlames()
-
-    def __init__(self, position):
+    def __init__(self, *func):
         super(Ship, self).__init__()
-        self.x, self.y = position
         self.image = pygame.image.load('gfx2/p.gif').convert_alpha()
         self.orig = self.image  # for rotation
         self.rect = self.image.get_rect()
-        self.rect.centerx = self.x
-        self.rect.centery = self.y
         self.died = False
         self.move = False
         self.angle = 0
         self.move_angle = 0
         self.acc = 0
-        self.flame = Flame(position)
         self.life = 100
         self.lifes = 3
+        self.collide_func = func
 
     def _rotate(self, angle):
         oldc = self.rect.center
@@ -149,18 +146,39 @@ class Ship(pygame.sprite.Sprite):
         if suncollide == 1.0:
             self.died = True
         elif suncollide:
-            self.life -= 10
+            self.life -= 2
+            if not self.life:
+                self.died = True
         if not self.died:
             self._rotate(self.angle)
             self.x += math.sin(self.move_angle) * self.acc
             self.y -= math.cos(self.move_angle) * self.acc
         else:
             self.lifes -= 1
+            if self.lifes:
+                self.reset()
         self.rect.centerx = self.x
         self.rect.centery = self.y
         if self.move:
             self.flame.update(self.angle, (self.x, self.y))
-        return self.lifes
+        return (self.lifes, self.life)
+
+    def reset(self):
+        self.life = 100
+        self.died = False
+        found = False
+        self.acc = 0
+        while not found:
+            x = randint(40, 600)
+            y = randint(40, 400)
+            for f in self.collide_func:
+                if not f((x, y)):
+                    found = True
+                    break
+        self.x, self.y = x, y
+        self.rect.centerx = self.x
+        self.rect.centery = self.y
+        self.flame = Flame((x, y))
 
     def ride(self, key):
         if key[K_UP]:
@@ -203,12 +221,8 @@ class Game(pygame.sprite.Sprite):
 
     def reset(self):
         self.sun = Sun((randint(80, 500), randint(80, 340)))
-        while True:
-            x = randint(40, 600)
-            y = randint(40, 400)
-            if not self.sun.collide((x, y)):
-                break
-        self.hero = Ship((x, y))
+        self.hero = Ship(self.sun.collide)
+        self.hero.reset()
         self.hud = HUD()
 
     def run(self):
@@ -222,11 +236,11 @@ class Game(pygame.sprite.Sprite):
                 keys = pygame.key.get_pressed()
                 self.hero.ride(keys)
             self.draw()
-            lifes = self.hero.update(self.sun.collide(self.hero))
+            lifes, life = self.hero.update(self.sun.collide(self.hero))
             if not lifes:
                 self.reset()
                 continue
-            self.hud.update(lifes, self.hero.life)
+            self.hud.update(lifes, life)
             self.sun.draw(self.screen)
             self.hero.draw(self.screen)
             self.hud.draw(self.screen)
