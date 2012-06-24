@@ -21,7 +21,7 @@ class HUD(pygame.sprite.Sprite):
         self.rect.top = 500
         self.points = 0
 
-    def update(self, lifes, life, points=0):  # FIXME: provide points
+    def update(self, lifes, life, shield, points=0):  # FIXME: provide points
         self.points += points
         self.image.fill((100, 100, 100))
         self.image.blit(
@@ -33,6 +33,9 @@ class HUD(pygame.sprite.Sprite):
         self.image.blit(self.font.render('H:', 1, (0, 0, 0)), (10, 25))
         pygame.draw.line(self.image, (90, 0, 0), (25, 29), (25 + life, 29), 8)
         self.image.blit(self.font.render('S:', 1, (0, 0, 0)), (10, 40))
+        pygame.draw.line(
+            self.image, (180, 170, 30), (25, 44), (25 + shield, 44), 8
+        )
         self.image.blit(self.font.render('F:', 1, (0, 0, 0)), (10, 55))
 
     def draw(self, screen):
@@ -134,6 +137,8 @@ class Ship(pygame.sprite.Sprite):
         self.acc = 0
         self.life = 100
         self.lifes = 3
+        self.shield = 100
+        self.wait = 0
         self.collide_func = func
 
     def _rotate(self, angle):
@@ -146,9 +151,19 @@ class Ship(pygame.sprite.Sprite):
         if suncollide == 1.0:
             self.died = True
         elif suncollide:
-            self.life -= 2
+            self.wait = -50
+            if self.shield:
+                self.shield -= 5
+            else:
+                self.life -= 2
             if not self.life:
                 self.died = True
+        else:
+            self.wait += 1
+            if self.wait == 20:
+                self.wait = 0
+                if self.shield < 100:
+                    self.shield += 5
         if not self.died:
             self._rotate(self.angle)
             self.x += math.sin(self.move_angle) * self.acc
@@ -161,10 +176,11 @@ class Ship(pygame.sprite.Sprite):
         self.rect.centery = self.y
         if self.move:
             self.flame.update(self.angle, (self.x, self.y))
-        return (self.lifes, self.life)
+        return (self.lifes, self.life, self.shield)
 
     def reset(self):
         self.life = 100
+        self.shield = 100
         self.died = False
         found = False
         self.acc = 0
@@ -236,11 +252,11 @@ class Game(pygame.sprite.Sprite):
                 keys = pygame.key.get_pressed()
                 self.hero.ride(keys)
             self.draw()
-            lifes, life = self.hero.update(self.sun.collide(self.hero))
+            lifes, life, shield = self.hero.update(self.sun.collide(self.hero))
             if not lifes:
                 self.reset()
                 continue
-            self.hud.update(lifes, life)
+            self.hud.update(lifes, life, shield)
             self.sun.draw(self.screen)
             self.hero.draw(self.screen)
             self.hud.draw(self.screen)
