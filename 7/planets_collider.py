@@ -21,7 +21,7 @@ class HUD(pygame.sprite.Sprite):
         self.rect.top = 500
         self.points = 0
 
-    def update(self, lifes, life, shield, points=0):  # FIXME: provide points
+    def update(self, lifes, life, shield, fuel, points=0):
         self.points += points
         self.image.fill((100, 100, 100))
         self.image.blit(
@@ -37,9 +37,42 @@ class HUD(pygame.sprite.Sprite):
             self.image, (180, 170, 30), (25, 44), (25 + shield, 44), 8
         )
         self.image.blit(self.font.render('F:', 1, (0, 0, 0)), (10, 55))
+        pygame.draw.line(
+            self.image, (0, 20, 200), (25, 59), (25 + fuel, 59), 8
+        )
 
     def draw(self, screen):
         screen.blit(self.image, (self.rect.left, self.rect.top))
+
+
+def _makeAni(name, n):
+    ani = list()
+    for i in range(n):
+        img = pygame.image.load('gfx2/{0}-{1}.png'.format(name, i))
+        ani.append(img)
+    return ani
+
+
+class Fuel(pygame.sprite.Sprite):
+    _fuel = _makeAni('c', 25)
+
+    def __init__(self):
+        super(Fuel, self).__init__()
+        self.x, self.y = randint(20, 780), randint(20, 580)
+        self.ani = 0
+        self.wait = 0
+        self.image = Fuel._fuel[self.ani].convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.x
+        self.rect.centery = self.y
+
+    def update(self):
+        self.ani += 1
+        self.ani %= 25
+        self.image = Fuel._fuel[self.ani].convert_alpha()
+        self.wait += 1
+        if self.wait > 100:
+            self.kill()
 
 
 class Sun(pygame.sprite.Sprite):
@@ -60,35 +93,58 @@ class Sun(pygame.sprite.Sprite):
     def collide(self, item):
         try:
             x, y = item
-            return self.rect.colliderect(
-                pygame.rect.Rect((x - 32, y - 32), (96, 96))
-            )
         except TypeError:
             if pygame.sprite.collide_circle(self, item):
                 return 1.0
             elif pygame.sprite.collide_circle_ratio(1.3)(self, item):
                 return 0.5
             return 0.0
+        else:
+            return self.rect.colliderect(
+                pygame.rect.Rect((x - 32, y - 32), (96, 96))
+            )
 
     def draw(self, screen):
         screen.blit(self.image, (self.rect.left, self.rect.top))
 
 
 class Planet(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, sun):
         super(Planet, self).__init__()
+        self.diameter = randint(50, 150)
+        self.radius = self.diameter / 2
+        self.mass = self.diameter / 4
+        self.image = pygame.image.load(
+            'gfx2/planets/{0}.png'.format(randint(1, 19))
+        ).convert_alpha()
+        self.image = pygame.transform.scale(
+            self.image, (self.diameter, self.diameter)
+        )
+        self.rect = self.image.get_rect()
+        self.sun = sun
+        self.degree = 0
 
+    def update(self):
+        self.degree += 1
+        self.degree %= 360
+        self.x = math.cos(self.degree * 2 * math.pi / 360) * self.xradius
+        self.y = math.sin(self.degree * 2 * math.pi / 360) * self.yradius
+        self.rect.centerx = self.x
+        self.rect.centery = self.y
 
-def _makeFlames():
-    flames = list()
-    for i in range(50):
-        img = pygame.image.load('gfx2/flame-{0}.png'.format(i))
-        flames.append(img)
-    return flames
+    def reset(self):
+        while True:
+            x = randint(110, 600)
+            y = randint(110, 600)
+            # FIXME: needs re-thinking
+            if(pygame.Rect(-x, -y, 2 * x, 2 * y).contains(self.sun.rect)):
+                self.xradius = x
+                self.yradius = y
+                break
 
 
 class Flame(pygame.sprite.Sprite):
-    _flames = _makeFlames()
+    _flames = _makeAni('flame', 50)
 
     def __init__(self, position):
         super(Flame, self).__init__()
@@ -138,6 +194,7 @@ class Ship(pygame.sprite.Sprite):
         self.life = 100
         self.lifes = 3
         self.shield = 100
+        self.fuel = 100
         self.wait = 0
         self.collide_func = func
 
@@ -146,6 +203,12 @@ class Ship(pygame.sprite.Sprite):
         self.image = pygame.transform.rotate(self.orig, angle)
         self.rect = self.image.get_rect()
         self.rect.center = oldc
+
+    def refuel(self):
+        if self.fuel < 100:
+            self.fuel += 10
+            if self.fuel > 100:
+                self.fuel = 100
 
     def update(self, suncollide):
         if suncollide == 1.0:
@@ -176,7 +239,7 @@ class Ship(pygame.sprite.Sprite):
         self.rect.centery = self.y
         if self.move:
             self.flame.update(self.angle, (self.x, self.y))
-        return (self.lifes, self.life, self.shield)
+        return (self.lifes, self.life, self.shield, self.fuel)
 
     def reset(self):
         self.life = 100
@@ -237,6 +300,12 @@ class Game(pygame.sprite.Sprite):
 
     def reset(self):
         self.sun = Sun((randint(80, 500), randint(80, 340)))
+        self.planets = pygame.sprite.Group()
+        for i in range(randint(1, 5)):
+            planet = Planet(self.sun)
+            planet.reset()
+            self.planets.add(planet)
+        self.fuel = pygame.sprite.Group()
         self.hero = Ship(self.sun.collide)
         self.hero.reset()
         self.hud = HUD()
@@ -252,12 +321,25 @@ class Game(pygame.sprite.Sprite):
                 keys = pygame.key.get_pressed()
                 self.hero.ride(keys)
             self.draw()
-            lifes, life, shield = self.hero.update(self.sun.collide(self.hero))
+            lifes, life, shield, fuel = self.hero.update(
+                self.sun.collide(self.hero)
+            )
+            for fuel_ in pygame.sprite.spritecollide(
+                self.hero, self.fuel, False
+            ):
+                fuel_.kill()
+                self.hero.refuel()
             if not lifes:
                 self.reset()
                 continue
-            self.hud.update(lifes, life, shield)
+            if randint(0, 400) == 0:
+                self.fuel.add(Fuel())
+            self.fuel.update()
+            self.hud.update(lifes, life, shield, fuel)
+            self.planets.update()
+            self.fuel.draw(self.screen)
             self.sun.draw(self.screen)
+            self.planets.draw(self.screen)
             self.hero.draw(self.screen)
             self.hud.draw(self.screen)
             pygame.display.update()
