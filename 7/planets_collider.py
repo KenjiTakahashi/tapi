@@ -55,8 +55,8 @@ class Flame(pygame.sprite.Sprite):
         self._rotate(angle)
         self.x, self.y = position
         move_angle = math.radians(angle)
-        self.x += math.sin(move_angle) * 48
-        self.y += math.cos(move_angle) * 48
+        self.x += math.sin(move_angle) * 24
+        self.y += math.cos(move_angle) * 24
         self.rect.centerx = self.x
         self.rect.centery = self.y
 
@@ -109,7 +109,7 @@ class Ship(pygame.sprite.Sprite):
         else:
             self.move = False
             if self.acc > 0:
-                self.acc -= 0.01
+                self.acc -= 0.02
                 if self.acc < 0:
                     self.acc = 0
         if key[K_LEFT]:
@@ -137,25 +137,9 @@ class Game(pygame.sprite.Sprite):
         self.reset()
 
     def draw(self):
-        x = self.x % self.size_x
-        y = self.y % self.size_y
-        self.screen.blit(
-            self.image, (0, 0), (x, 0, self.size_x - x, self.size_y - y)
-        )
-        if x:
-            self.screen.blit(
-                self.image, (self.size_x - x, y),
-                (0, 0, self.size_x, self.size_y)
-            )
-        if y:
-            self.screen.blit(
-                self.image, (x, self.size_y - y),
-                (0, 0, self.size_x, self.size_y)
-            )
+        self.screen.blit(self.image, (0, 0))
 
     def reset(self):
-        self.x = 0
-        self.y = 0
         #TODO: Check rand for planets collisions
         self.hero = Ship((randint(40, 600), randint(40, 400)))
 
