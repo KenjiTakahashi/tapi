@@ -71,7 +71,7 @@ class Fuel(pygame.sprite.Sprite):
         self.ani %= 25
         self.image = Fuel._fuel[self.ani].convert_alpha()
         self.wait += 1
-        if self.wait > 100:
+        if self.wait > 140:
             self.kill()
 
 
