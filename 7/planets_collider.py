@@ -33,13 +33,15 @@ class HUD(pygame.sprite.Sprite):
         self.image.blit(self.font.render('H:', 1, (0, 0, 0)), (10, 25))
         pygame.draw.line(self.image, (90, 0, 0), (25, 29), (25 + life, 29), 8)
         self.image.blit(self.font.render('S:', 1, (0, 0, 0)), (10, 40))
-        pygame.draw.line(
-            self.image, (180, 170, 30), (25, 44), (25 + shield, 44), 8
-        )
+        if shield:
+            pygame.draw.line(
+                self.image, (180, 170, 30), (25, 44), (25 + shield, 44), 8
+            )
         self.image.blit(self.font.render('F:', 1, (0, 0, 0)), (10, 55))
-        pygame.draw.line(
-            self.image, (0, 20, 200), (25, 59), (25 + fuel, 59), 8
-        )
+        if fuel:
+            pygame.draw.line(
+                self.image, (0, 20, 200), (25, 59), (25 + fuel, 59), 8
+            )
 
     def draw(self, screen):
         screen.blit(self.image, (self.rect.left, self.rect.top))
@@ -54,7 +56,7 @@ def _makeAni(name, n):
 
 
 class Fuel(pygame.sprite.Sprite):
-    _fuel = _makeAni('c', 25)
+    _fuel = _makeAni('c', 50)
 
     def __init__(self):
         super(Fuel, self).__init__()
@@ -75,6 +77,28 @@ class Fuel(pygame.sprite.Sprite):
             self.kill()
 
 
+class SuperShield(pygame.sprite.Sprite):
+    _sshield = _makeAni('ss', 50)
+
+    def __init__(self):
+        super(SuperShield, self).__init__()
+        self.x, self.y = randint(20, 780), randint(20, 580)
+        self.ani = 0
+        self.wait = 0
+        self.image = SuperShield._sshield[self.ani].convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.x
+        self.rect.centery = self.y
+
+    def update(self):
+        self.ani += 1
+        self.ani %= 50
+        self.image = SuperShield._sshield[self.ani].convert_alpha()
+        self.wait += 1
+        if self.wait > 140:
+            self.kill()
+
+
 class Sun(pygame.sprite.Sprite):
     def __init__(self, position):
         super(Sun, self).__init__()
@@ -82,8 +106,16 @@ class Sun(pygame.sprite.Sprite):
         self.diameter = randint(120, 200)
         self.radius = self.diameter / 2
         self.image = pygame.image.load('gfx2/sun.jpg')
+        self.orig = self.image
+        self.reimage()
+
+    def burn(self):
+        self.diameter -= 1
+        self.reimage()
+
+    def reimage(self):
         self.image = pygame.transform.scale(
-            self.image, (self.diameter, self.diameter)
+            self.orig, (self.diameter, self.diameter)
         )
         self.image.set_colorkey((0, 0, 0))
         self.rect = self.image.get_rect()
@@ -180,6 +212,26 @@ class Flame(pygame.sprite.Sprite):
         screen.blit(self.image, (self.rect.left, self.rect.top))
 
 
+class SuperShieldShape(pygame.sprite.Sprite):
+    def __init__(self, position):
+        super(SuperShieldShape, self).__init__()
+        self.x, self.y = position
+        self.image = pygame.Surface((64, 64))
+        self.image.set_colorkey((0, 0, 0))
+        pygame.draw.circle(self.image, (160, 90, 20), (32, 32), 24, 3)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.x
+        self.rect.centery = self.y
+
+    def update(self, pos):
+        self.x, self.y = pos
+        self.rect.centerx = self.x
+        self.rect.centery = self.y
+
+    def draw(self, screen):
+        screen.blit(self.image, (self.rect.left, self.rect.top))
+
+
 class Ship(pygame.sprite.Sprite):
     def __init__(self, *func):
         super(Ship, self).__init__()
@@ -195,6 +247,8 @@ class Ship(pygame.sprite.Sprite):
         self.lifes = 3
         self.shield = 100
         self.fuel = 100
+        self.sshield = 0
+        self.sshieldshape = None
         self.wait = 0
         self.collide_func = func
 
@@ -210,8 +264,14 @@ class Ship(pygame.sprite.Sprite):
             if self.fuel > 100:
                 self.fuel = 100
 
+    def supershield(self):
+        self.sshield = 80
+        self.sshieldshape = SuperShieldShape(
+            (self.rect.centerx, self.rect.centery)
+        )
+
     def update(self, suncollide):
-        if suncollide == 1.0:
+        if suncollide == 1.0 and not self.sshield:
             self.died = True
         elif suncollide:
             self.wait = -50
@@ -237,6 +297,12 @@ class Ship(pygame.sprite.Sprite):
                 self.reset()
         self.rect.centerx = self.x
         self.rect.centery = self.y
+        if self.sshield:
+            self.sshieldshape.update((self.rect.centerx, self.rect.centery))
+            self.sshield -= 1
+        elif self.sshieldshape:
+            self.sshieldshape.kill()
+            self.sshieldshape = None
         if self.move:
             self.flame.update(self.angle, (self.x, self.y))
         return (self.lifes, self.life, self.shield, self.fuel)
@@ -280,6 +346,8 @@ class Ship(pygame.sprite.Sprite):
         screen.blit(self.image, (self.rect.left, self.rect.top))
         if self.move:
             self.flame.draw(screen)
+        if self.sshield:
+            self.sshieldshape.draw(screen)
 
 
 class Game(pygame.sprite.Sprite):
@@ -306,6 +374,7 @@ class Game(pygame.sprite.Sprite):
             planet.reset()
             self.planets.add(planet)
         self.fuel = pygame.sprite.Group()
+        self.sshield = pygame.sprite.Group()
         self.hero = Ship(self.sun.collide)
         self.hero.reset()
         self.hud = HUD()
@@ -321,23 +390,33 @@ class Game(pygame.sprite.Sprite):
                 keys = pygame.key.get_pressed()
                 self.hero.ride(keys)
             self.draw()
-            lifes, life, shield, fuel = self.hero.update(
-                self.sun.collide(self.hero)
-            )
+            scollide = self.sun.collide(self.hero)
+            lifes, life, shield, fuel = self.hero.update(scollide)
+            if scollide and self.hero.sshield:
+                self.sun.burn()
             for fuel_ in pygame.sprite.spritecollide(
                 self.hero, self.fuel, False
             ):
                 fuel_.kill()
                 self.hero.refuel()
+            for ss in pygame.sprite.spritecollide(
+                self.hero, self.sshield, False
+            ):
+                ss.kill()
+                self.hero.supershield()
             if not lifes:
                 self.reset()
                 continue
-            if randint(0, 400) == 0:
+            if not randint(0, 400):
                 self.fuel.add(Fuel())
+            if not randint(0, 650):
+                self.sshield.add(SuperShield())
             self.fuel.update()
+            self.sshield.update()
             self.hud.update(lifes, life, shield, fuel)
             self.planets.update()
             self.fuel.draw(self.screen)
+            self.sshield.draw(self.screen)
             self.sun.draw(self.screen)
             self.planets.draw(self.screen)
             self.hero.draw(self.screen)
