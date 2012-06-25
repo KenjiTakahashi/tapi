@@ -62,7 +62,7 @@ class Fuel(pygame.sprite.Sprite):
         super(Fuel, self).__init__()
         self.x, self.y = randint(20, 780), randint(20, 580)
         self.ani = 0
-        self.wait = 0
+        self.wait = 140
         self.image = Fuel._fuel[self.ani].convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.centerx = self.x
@@ -72,8 +72,8 @@ class Fuel(pygame.sprite.Sprite):
         self.ani += 1
         self.ani %= 25
         self.image = Fuel._fuel[self.ani].convert_alpha()
-        self.wait += 1
-        if self.wait > 140:
+        self.wait -= 1
+        if not self.wait:
             self.kill()
 
 
@@ -84,7 +84,7 @@ class SuperShield(pygame.sprite.Sprite):
         super(SuperShield, self).__init__()
         self.x, self.y = randint(20, 780), randint(20, 580)
         self.ani = 0
-        self.wait = 0
+        self.wait = 140
         self.image = SuperShield._sshield[self.ani].convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.centerx = self.x
@@ -94,8 +94,30 @@ class SuperShield(pygame.sprite.Sprite):
         self.ani += 1
         self.ani %= 50
         self.image = SuperShield._sshield[self.ani].convert_alpha()
-        self.wait += 1
-        if self.wait > 140:
+        self.wait -= 1
+        if not self.wait:
+            self.kill()
+
+
+class Coin(pygame.sprite.Sprite):
+    _coin = _makeAni('coin', 25)
+
+    def __init__(self):
+        super(Coin, self).__init__()
+        self.x, self.y = randint(20, 780), randint(20, 580)
+        self.ani = 0
+        self.wait = 200
+        self.image = Coin._coin[self.ani].convert_alpha()
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.x
+        self.rect.centery = self.y
+
+    def update(self):
+        self.ani += 1
+        self.ani %= 25
+        self.image = Coin._coin[self.ani].convert_alpha()
+        self.wait -= 1
+        if not self.wait:
             self.kill()
 
 
@@ -375,6 +397,7 @@ class Game(pygame.sprite.Sprite):
             self.planets.add(planet)
         self.fuel = pygame.sprite.Group()
         self.sshield = pygame.sprite.Group()
+        self.coins = pygame.sprite.Group()
         self.hero = Ship(self.sun.collide)
         self.hero.reset()
         self.hud = HUD()
@@ -404,6 +427,9 @@ class Game(pygame.sprite.Sprite):
             ):
                 ss.kill()
                 self.hero.supershield()
+            points = len(
+                pygame.sprite.spritecollide(self.hero, self.coins, True)
+            )
             if not lifes:
                 self.reset()
                 continue
@@ -411,12 +437,16 @@ class Game(pygame.sprite.Sprite):
                 self.fuel.add(Fuel())
             if not randint(0, 650):
                 self.sshield.add(SuperShield())
+            if not randint(0, 100):
+                self.coins.add(Coin())
             self.fuel.update()
             self.sshield.update()
-            self.hud.update(lifes, life, shield, fuel)
+            self.coins.update()
+            self.hud.update(lifes, life, shield, fuel, points)
             self.planets.update()
             self.fuel.draw(self.screen)
             self.sshield.draw(self.screen)
+            self.coins.draw(self.screen)
             self.sun.draw(self.screen)
             self.planets.draw(self.screen)
             self.hero.draw(self.screen)
