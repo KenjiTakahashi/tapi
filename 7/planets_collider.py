@@ -133,6 +133,7 @@ class Sun(pygame.sprite.Sprite):
 
     def burn(self):
         self.diameter -= 1
+        self.radius -= 0.5
         self.reimage()
 
     def reimage(self):
@@ -176,7 +177,6 @@ class Planet(pygame.sprite.Sprite):
         )
         self.rect = self.image.get_rect()
         self.sun = sun
-        self.degree = 0
 
     def update(self):
         self.degree += 1
@@ -187,6 +187,7 @@ class Planet(pygame.sprite.Sprite):
         self.rect.centery = self.y
 
     def reset(self):
+        self.degree = randint(0, 360)
         while True:
             x = randint(110, 600)
             y = randint(110, 600)
@@ -295,7 +296,7 @@ class Ship(pygame.sprite.Sprite):
     def update(self, suncollide):
         if suncollide == 1.0 and not self.sshield:
             self.died = True
-        elif suncollide:
+        elif suncollide and not self.sshield:
             self.wait = -50
             if self.shield:
                 self.shield -= 5
@@ -384,6 +385,7 @@ class Game(pygame.sprite.Sprite):
         self.image = pygame.image.load('gfx2/b.jpg').convert()
         self.rect = self.image.get_rect()
         self.reset()
+        self.hud = HUD()
 
     def draw(self):
         self.screen.blit(self.image, (0, 0))
@@ -400,7 +402,6 @@ class Game(pygame.sprite.Sprite):
         self.coins = pygame.sprite.Group()
         self.hero = Ship(self.sun.collide)
         self.hero.reset()
-        self.hud = HUD()
 
     def run(self):
         while not self.ended:
@@ -417,6 +418,9 @@ class Game(pygame.sprite.Sprite):
             lifes, life, shield, fuel = self.hero.update(scollide)
             if scollide and self.hero.sshield:
                 self.sun.burn()
+            if not self.sun.diameter:
+                self.reset()
+                continue
             for fuel_ in pygame.sprite.spritecollide(
                 self.hero, self.fuel, False
             ):
@@ -431,7 +435,7 @@ class Game(pygame.sprite.Sprite):
                 pygame.sprite.spritecollide(self.hero, self.coins, True)
             )
             if not lifes:
-                self.reset()
+                # TODO: game over
                 continue
             if not randint(0, 400):
                 self.fuel.add(Fuel())
