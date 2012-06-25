@@ -236,8 +236,10 @@ class Planet(pygame.sprite.Sprite):
             if pygame.sprite.collide_circle(self, item):
                 return 1.0
             elif pygame.sprite.collide_circle_ratio(self.gravity)(self, item):
-                return 0.5
-            return 0.0
+                x = item.rect.centerx > self.rect.centerx and -1 or 1
+                y = item.rect.centery > self.rect.centery and -1 or 1
+                return (0.5, (x, y))
+            return (0.0, None)
         else:
             return self.rect.colliderect(
                 pygame.rect.Rect((x - 32, y - 32), (96, 96))
@@ -360,6 +362,13 @@ class Ship(pygame.sprite.Sprite):
                 self.wait = 0
                 if self.shield < 100:
                     self.shield += 5
+        for v, opt in planetcollide:
+            if v == 1.0:
+                pass
+            elif v == 0.5:
+                dx, dy = opt
+                self.x += dx
+                self.y += dy
         if not self.died:
             self._rotate(self.angle)
             self.x += math.sin(self.move_angle) * self.acc
