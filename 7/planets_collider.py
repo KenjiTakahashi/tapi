@@ -3,7 +3,7 @@
 # GFX by Roencia Game Creators (http://www.roencia.com)
 
 import pygame
-from pygame.locals import QUIT, K_UP, K_LEFT, K_RIGHT, K_SPACE, KEYDOWN
+from pygame.locals import QUIT, K_UP, K_LEFT, K_RIGHT, K_SPACE, KEYDOWN, K_r
 from sys import exit
 from random import randint, uniform
 import math
@@ -472,6 +472,12 @@ class Game(pygame.sprite.Sprite):
                 ):
                     self.reset()
                     self.hud.points = 0  # hacks, hacks
+                if((self.hero.x < 0 or self.hero.x > 800
+                or self.hero.y < 0 or self.hero.y > 600)
+                and event.type == KEYDOWN
+                and event.key == K_r
+                ):
+                    self.hero.reset()
             if self.ended:
                 self.draw_game_over()
                 pygame.display.update()
