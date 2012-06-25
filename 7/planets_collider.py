@@ -195,7 +195,6 @@ class Planet(pygame.sprite.Sprite):
         super(Planet, self).__init__()
         self.diameter = randint(20, 100)
         self.radius = self.diameter / 2
-        self.mass = self.diameter / 4
         self.gravity = round(uniform(1, 3), 2)
         self.image = pygame.image.load(
             'gfx2/planets/{0}.png'.format(randint(1, 19))
@@ -233,11 +232,13 @@ class Planet(pygame.sprite.Sprite):
         try:
             x, y = item
         except TypeError:
+            x = item.rect.centerx > self.rect.centerx and -1 or 1
+            y = item.rect.centery > self.rect.centery and -1 or 1
             if pygame.sprite.collide_circle(self, item):
-                return 1.0
+                dx = item.rect.centerx - self.rect.centerx
+                dy = item.rect.centery = self.rect.centery
+                return (1.0, (math.hypot(dx, dy), x, y))
             elif pygame.sprite.collide_circle_ratio(self.gravity)(self, item):
-                x = item.rect.centerx > self.rect.centerx and -1 or 1
-                y = item.rect.centery > self.rect.centery and -1 or 1
                 return (0.5, (x, y))
             return (0.0, None)
         else:
@@ -326,6 +327,7 @@ class Ship(pygame.sprite.Sprite):
         self.sshieldshape = None
         self.wait = 0
         self.collide_func = func
+        self.bounced = 0
 
     def _rotate(self, angle):
         oldc = self.rect.center
@@ -352,23 +354,42 @@ class Ship(pygame.sprite.Sprite):
             self.wait = -50
             if self.shield:
                 self.shield -= 5
+                if self.shield < 0:
+                    self.shield = 0
             else:
                 self.life -= 2
             if not self.life:
                 self.died = True
+        if not self.bounced:
+            for v, opt in planetcollide:
+                if v == 1.0:
+                    opt, a, b = opt
+                    opt /= 100
+                    if self.shield:
+                        self.shield -= 2.5 * opt
+                        if self.shield < 0:
+                            self.shield = 0
+                    else:
+                        self.life -= opt
+                    self.wait = -50
+                    if self.acc:
+                        self.acc = -self.acc - opt
+                    else:
+                        self.acc = opt * a
+                    self.bounced = int(opt) * 10
+                elif v == 0.5:
+                    dx, dy = opt
+                    self.x += dx * 2
+                    self.y += dy * 2
         else:
-            self.wait += 1
-            if self.wait == 20:
-                self.wait = 0
-                if self.shield < 100:
-                    self.shield += 5
-        for v, opt in planetcollide:
-            if v == 1.0:
-                pass
-            elif v == 0.5:
-                dx, dy = opt
-                self.x += dx
-                self.y += dy
+            self.bounced -= 1
+        self.wait += 1
+        if self.wait == 20:
+            self.wait = 0
+            if self.shield < 100:
+                self.shield += 5
+                if self.shield > 100:
+                    self.shield = 100
         if not self.died:
             self._rotate(self.angle)
             self.x += math.sin(self.move_angle) * self.acc
@@ -410,7 +431,7 @@ class Ship(pygame.sprite.Sprite):
         self.flame = Flame((x, y))
 
     def ride(self, key):
-        if key[K_UP]:
+        if key[K_UP] and not self.bounced:
             self.move = True
             if self.acc < 5:
                 self.acc += 0.5
