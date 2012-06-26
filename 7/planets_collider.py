@@ -195,6 +195,8 @@ class Planet(pygame.sprite.Sprite):
         super(Planet, self).__init__()
         self.diameter = randint(20, 100)
         self.radius = self.diameter / 2
+        self.xoffset = 0
+        self.yoffset = 0
         self.gravity = round(uniform(1, 3), 2)
         self.image = pygame.image.load(
             'gfx2/planets/{0}.png'.format(randint(1, 19))
@@ -208,11 +210,19 @@ class Planet(pygame.sprite.Sprite):
             (self.rect.centerx, self.rect.centery), self.radius, self.gravity
         )
 
+    def shrink(self):
+        self.xradius -= 0.5
+        self.yradius -= 0.5
+
     def update(self):
         self.degree += 1
         self.degree %= 360
-        self.x = math.cos(self.degree * 2 * math.pi / 360) * self.xradius
-        self.y = math.sin(self.degree * 2 * math.pi / 360) * self.yradius
+        self.x = self.xoffset + math.cos(
+            self.degree * 2 * math.pi / 360
+        ) * self.xradius
+        self.y = self.yoffset + math.sin(
+            self.degree * 2 * math.pi / 360
+        ) * self.yradius
         self.rect.centerx = self.x
         self.rect.centery = self.y
         self.gshape.update((self.rect.centerx, self.rect.centery))
@@ -222,10 +232,16 @@ class Planet(pygame.sprite.Sprite):
         while True:
             x = randint(110, 600)
             y = randint(110, 600)
-            # FIXME: needs re-thinking
-            if(pygame.Rect(-x, -y, 2 * x, 2 * y).contains(self.sun.rect)):
+            sx = self.sun.rect.centerx
+            sy = self.sun.rect.centery
+            ox = sx + randint(-200, 200)
+            oy = sy + randint(-200, 200)
+            rect = pygame.Rect(ox - x, oy - y, 2 * x, 2 * y)
+            if rect.contains(self.sun.rect):
                 self.xradius = x
                 self.yradius = y
+                self.xoffset = ox
+                self.yoffset = oy
                 break
 
     def collide(self, item):
@@ -442,6 +458,10 @@ class Ship(pygame.sprite.Sprite):
                 self.acc -= 0.02
                 if self.acc < 0:
                     self.acc = 0
+            if self.acc < 0:
+                self.acc += 0.02
+                if self.acc > 0:
+                    self.acc = 0
         if key[K_LEFT]:
             self.angle += 5
         if key[K_RIGHT]:
@@ -520,11 +540,12 @@ class Game(pygame.sprite.Sprite):
             pcollide = [p.collide(self.hero) for p in self.planets]
             lifes, life, shield, fuel = self.hero.update(scollide, pcollide)
             if not lifes:
-                # TODO: game over
                 self.ended = True
                 continue
             if scollide and self.hero.sshield:
                 self.sun.burn()
+                for planet in self.planets:
+                    planet.shrink()
             if not self.sun.diameter:
                 self.hud.burn_the_sun()
                 self.reset()
