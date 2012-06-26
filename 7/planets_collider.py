@@ -413,7 +413,7 @@ class Ship(pygame.sprite.Sprite):
         else:
             self.lifes -= 1
             if self.lifes:
-                self.reset()
+                self.reset(True)
         self.rect.centerx = self.x
         self.rect.centery = self.y
         if self.sshield:
@@ -426,9 +426,11 @@ class Ship(pygame.sprite.Sprite):
             self.flame.update(self.angle, (self.x, self.y))
         return (self.lifes, self.life, self.shield, self.fuel)
 
-    def reset(self):
-        self.life = 100
-        self.shield = 100
+    def reset(self, val):
+        if val:
+            self.life = 100
+            self.shield = 100
+            self.fuel = 100
         self.died = False
         self.acc = 0
         while True:
@@ -508,7 +510,7 @@ class Game(pygame.sprite.Sprite):
         self.sshield = pygame.sprite.Group()
         self.coins = pygame.sprite.Group()
         self.hero = Ship(self.sun.collide, *[p.collide for p in self.planets])
-        self.hero.reset()
+        self.hero.reset(True)
 
     def run(self):
         while True:
@@ -528,7 +530,7 @@ class Game(pygame.sprite.Sprite):
                 and event.type == KEYDOWN
                 and event.key == K_r
                 ):
-                    self.hero.reset()
+                    self.hero.reset(False)
             if self.ended:
                 self.draw_game_over()
                 pygame.display.update()
