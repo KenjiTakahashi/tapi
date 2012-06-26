@@ -391,7 +391,7 @@ class Ship(pygame.sprite.Sprite):
                     if self.acc:
                         self.acc = -self.acc - opt
                     else:
-                        self.acc = opt * a
+                        self.acc = -opt * a
                     self.bounced = int(opt) * 10
                 elif v == 0.5:
                     dx, dy = opt
@@ -447,11 +447,12 @@ class Ship(pygame.sprite.Sprite):
         self.flame = Flame((x, y))
 
     def ride(self, key):
-        if key[K_UP] and not self.bounced:
+        if key[K_UP] and not self.bounced and self.fuel:
             self.move = True
             if self.acc < 5:
                 self.acc += 0.5
             self.move_angle = -math.radians(self.angle)
+            self.fuel -= 0.5
         else:
             self.move = False
             if self.acc > 0:
